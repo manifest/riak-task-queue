@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="default" version="1.5">
+
+	<fields>
+		<!-- status: todo|nextup|done|failed -->
+		<field name="status_register" type="string" indexed="true" stored="false" multiValued="false" />
+		<!-- tags: [binary()] -->
+		<field name="tags_set" type="string" indexed="true" stored="false" multiValued="true" />
+		<!-- priority: integer(integer()) -->
+		<field name="priority_register" type="int32" indexed="true" stored="false" multiValued="false" />
+		<!-- assignee: binary(guid()) -->
+		<field name="assignee_register" type="string" indexed="true" stored="false" multiValued="false" />
+		<!-- input: binary() -->
+		<field name="in_register" type="string" indexed="false" stored="false" multiValued="false" />
+		<!-- output: binary() -->
+		<field name="out_register" type="string" indexed="false" stored="false" multiValued="false" />
+		<!-- lasted for: int(microseconds()) -->
+		<field name="laf_register" type="tint64" indexed="false" stored="false" multiValued="false" />
+		<!-- started at: int(unix_time(microseconds())) -->
+		<field name="sat_register" type="tint64" indexed="false" stored="false" multiValued="false" />
+		<!-- created at: int(unix_time(microseconds())) -->
+		<field name="cat_register" type="tint64" indexed="true" stored="false" multiValued="false" />
+
+		<!-- All of these fields are required by Riak Search -->
+		<field name="_yz_id" type="_yz_str" indexed="true" stored="true" multiValued="false" required="true" />
+		<field name="_yz_ed" type="_yz_str" indexed="true" stored="false" multiValued="false" />
+		<field name="_yz_pn" type="_yz_str" indexed="true" stored="false" multiValued="false" />
+		<field name="_yz_fpn" type="_yz_str" indexed="true" stored="false" multiValued="false" />
+		<field name="_yz_vtag" type="_yz_str" indexed="true" stored="false" multiValued="false" />
+		<field name="_yz_rk" type="_yz_str" indexed="true" stored="true" multiValued="false" />
+		<field name="_yz_rt" type="_yz_str" indexed="true" stored="true" multiValued="false" />
+		<field name="_yz_rb" type="_yz_str" indexed="true" stored="true" multiValued="false" />
+		<field name="_yz_err" type="_yz_str" indexed="true" stored="false" multiValued="false" />
+
+		<!-- Catch-All field -->
+		<dynamicField name="*" type="ignored" />
+	</fields>
+
+	<uniqueKey>_yz_id</uniqueKey>
+
+	<types>
+		<fieldType name="int32" class="solr.TrieIntField" precisionStep="0" positionIncrementGap="0" />
+		<fieldType name="tint64" class="solr.TrieLongField" precisionStep="8" positionIncrementGap="0" />
+		<fieldType name="string" class="solr.StrField" sortMissingLast="true" />
+		<fieldtype name="ignored" stored="false" indexed="false" multiValued="true" class="solr.StrField" />
+
+		<!-- YZ String: Used for non-analyzed fields -->
+		<fieldType name="_yz_str" class="solr.StrField" sortMissingLast="true" />
+	</types>
+
+</schema>
