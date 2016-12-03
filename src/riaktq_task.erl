@@ -204,10 +204,11 @@ close(_Pid, _Bucket, _Id, Status, _Handle) ->
 -spec put(pid(), bucket_and_type(), binary(), riakc_datatype:update(any())) -> ok.
 put(Pid, Bucket, Id, Op) ->
 	case catch riakc_pb_socket:update_type(Pid, Bucket, Id, Op, [{pw, quorum}]) of
-		ok               -> ok;
-		{error, Reason}  -> exit(Reason);
-		{'EXIT', Reason} -> exit(Reason);
-		Else             -> exit({bad_return_value, Else})
+		ok                  -> ok;
+		{error, unmodified} -> ok;
+		{error, Reason}     -> exit(Reason);
+		{'EXIT', Reason}    -> exit(Reason);
+		Else                -> exit({bad_return_value, Else})
 	end.
 
 -spec find_expected(pid(), bucket_and_type(), binary(), binary()) -> {ok, task()} | {error, any()}.
