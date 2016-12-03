@@ -2,7 +2,7 @@ FROM ubuntu:16.04
 
 ARG RIAKKV_VERSION
 ARG ULIMIT_FD
-ENV RIAKKV_VERSION=${RIAKKV_VERSION:-2.1.4}
+ENV RIAKKV_VERSION=${RIAKKV_VERSION:-2.2.0}
 ENV ULIMIT_FD=${ULIMIT_FD:-262144}
 
 ## -----------------------------------------------------------------------------
@@ -31,7 +31,7 @@ RUN set -xe \
 ## Installing Riak KV
 ## -----------------------------------------------------------------------------
 RUN set -xe \
-	&& add-apt-repository -s -y "deb https://packagecloud.io/basho/riak/ubuntu/ trusty main" \
+	&& add-apt-repository -s -y "deb https://packagecloud.io/basho/riak/ubuntu/ $(lsb_release -sc) main" \
 	&& curl -fSL https://packagecloud.io/gpg.key 2>&1 | apt-key add -- \
 	&& apt-get update \
 	&& apt-get -y --no-install-recommends install \
