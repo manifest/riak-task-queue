@@ -28,10 +28,6 @@
 
 %% API
 -export([
-	new/1,
-	new/2,
-	new/4,
-	new/5,
 	list/2,
 	list/3,
 	open/4,
@@ -40,6 +36,14 @@
 	assign/4,
 	assign/5,
 	close/5
+]).
+
+%% DataType API
+-export([
+	new_dt/1,
+	new_dt/2,
+	new_dt/4,
+	new_dt/5
 ]).
 
 %% Definitions
@@ -92,28 +96,6 @@
 %% =============================================================================
 %% API
 %% =============================================================================
-
--spec new(binary()) -> task().
-new(Input) ->
-	new(Input, [], ?TODO, 0).
-
--spec new(binary(), [binary()]) -> task().
-new(Input, Tags) ->
-	new(Input, Tags, ?TODO, 0).
-
--spec new(binary(), [binary()], binary(), integer()) -> task().
-new(Input, Tags, Status, Priority) ->
-	new(Input, Tags, Status, Priority, riaktq:unix_time_us()).
-
--spec new(binary(), [binary()], binary(), integer(), non_neg_integer()) -> task().
-new(Input, Tags, Status, Priority, CreatedAt) ->
-	T0 = riakc_map:new(),
-	T1 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(Status, Obj) end, T0),
-	T2 = riakc_map:update({<<"priority">>, register}, fun(Obj) -> riakc_register:set(integer_to_binary(Priority), Obj) end, T1),
-	T3 = riakc_map:update({<<"tags">>, set}, fun(Obj) -> riakc_set:add_elements(Tags, Obj) end, T2),
-	T4 = riakc_map:update({<<"cat">>, register}, fun(Obj) -> riakc_register:set(integer_to_binary(CreatedAt), Obj) end, T3),
-	T5 = riakc_map:update({<<"in">>, register}, fun(Obj) -> riakc_register:set(Input, Obj) end, T4),
-	T5.
 
 -spec list(pid(), binary()) -> [binary()].
 list(Pid, Index) ->
@@ -196,6 +178,32 @@ close(Pid, Bucket, Id, Status, Handle) when Status =:= ?DONE; Status =:= ?FAILED
 	end;
 close(_Pid, _Bucket, _Id, Status, _Handle) ->
 	{error, {bad_status, Status}}.
+
+%% =============================================================================
+%% DataType API
+%% =============================================================================
+
+-spec new_dt(binary()) -> task().
+new_dt(Input) ->
+	new_dt(Input, [], ?TODO, 0).
+
+-spec new_dt(binary(), [binary()]) -> task().
+new_dt(Input, Tags) ->
+	new_dt(Input, Tags, ?TODO, 0).
+
+-spec new_dt(binary(), [binary()], binary(), integer()) -> task().
+new_dt(Input, Tags, Status, Priority) ->
+	new_dt(Input, Tags, Status, Priority, riaktq:unix_time_us()).
+
+-spec new_dt(binary(), [binary()], binary(), integer(), non_neg_integer()) -> task().
+new_dt(Input, Tags, Status, Priority, CreatedAt) ->
+	T0 = riakc_map:new(),
+	T1 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(Status, Obj) end, T0),
+	T2 = riakc_map:update({<<"priority">>, register}, fun(Obj) -> riakc_register:set(integer_to_binary(Priority), Obj) end, T1),
+	T3 = riakc_map:update({<<"tags">>, set}, fun(Obj) -> riakc_set:add_elements(Tags, Obj) end, T2),
+	T4 = riakc_map:update({<<"cat">>, register}, fun(Obj) -> riakc_register:set(integer_to_binary(CreatedAt), Obj) end, T3),
+	T5 = riakc_map:update({<<"in">>, register}, fun(Obj) -> riakc_register:set(Input, Obj) end, T4),
+	T5.
 
 %% =============================================================================
 %% Internal functions

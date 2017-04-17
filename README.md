@@ -1,20 +1,17 @@
 # Riak Task Queue
 
-Task queue on top of Riak KV
+Permanent task queue with scheduler and multiple worker instances on top of Riak KV.
 
 
 
 ### How To Use
 
-Build and run the docker container with Riak KV within it.
-
-```bash
-$ ./run-docker.sh
-```
-
 To build and start playing with the library, execute following commands in the shell:
 
 ```bash
+## Building the development image and running the container with Riak KV within it.
+$ ./run-docker.sh
+## Building the application and executing an erlang shell.
 $ make app shell
 ```
 
@@ -53,7 +50,7 @@ InstanceConf =
 
 %% Opening a new task
 Pid = riakc_pool:lock(riaktq_riakc),
-riaktq_task:open(Pid, Bucket, <<"task-1">>, riaktq_task:new(<<"echo">>)).
+riaktq_task:open(Pid, Bucket, <<"task-1">>, riaktq_task:new_dt(<<"echo">>)).
 
 %% Getting result
 {ok, Task1} = riakc_pb_socket:fetch_type(Pid, Bucket, <<"task-1">>),
