@@ -61,7 +61,7 @@ handle(Pool, Bucket, Index) ->
 
 	handle_commit(TasksToCommit),
 	handle_assign(NextUpInstances, todo_tasks(RiakPid, Index), RiakPid, Bucket),
-	handle_reopen(TasksOnInstances, gb_sets:from_list(assigned_tasks(RiakPid, Index)), RiakPid, Bucket),
+	handle_rollback(TasksOnInstances, gb_sets:from_list(assigned_tasks(RiakPid, Index)), RiakPid, Bucket),
 	riakc_pool:unlock(Pool, RiakPid).
 
 handle_instance_output(Children, RiakPid, Bucket) ->
@@ -135,16 +135,16 @@ handle_assign([{Pid, Assignee}|Tinst]=NextUpInstances, [Id|Ttask], RiakPid, Buck
 handle_assign(_NextUpInstances, [], _RiakPid, _Bucket) -> ok;
 handle_assign([], _TasksToDo, _RiakPid, _Bucket)       -> ok.
 
--spec handle_reopen(Ids, Ids, pid(), bucket_and_type()) -> ok when Ids :: gb_sets:set(binary()).
-handle_reopen(TasksOnInstances, AssignedTasks, RiakPid, Bucket) ->
-	handle_reopen(gb_sets:to_list(gb_sets:subtract(AssignedTasks, TasksOnInstances)), RiakPid, Bucket).
+-spec handle_rollback(Ids, Ids, pid(), bucket_and_type()) -> ok when Ids :: gb_sets:set(binary()).
+handle_rollback(TasksOnInstances, AssignedTasks, RiakPid, Bucket) ->
+	handle_rollback(gb_sets:to_list(gb_sets:subtract(AssignedTasks, TasksOnInstances)), RiakPid, Bucket).
 
--spec handle_reopen([binary()], pid(), bucket_and_type()) -> ok.
-handle_reopen([Id|T], RiakPid, Bucket) ->
-	%% Reopening lost task if its status is right
-	_ = riaktq_task:reopen(RiakPid, Bucket, Id),
-	handle_reopen(T, RiakPid, Bucket);
-handle_reopen([], _RiakPid, _Bucket) ->
+-spec handle_rollback([binary()], pid(), bucket_and_type()) -> ok.
+handle_rollback([Id|T], RiakPid, Bucket) ->
+	%% Rollback a state of the losted task
+	_ = riaktq_task:rollback(RiakPid, Bucket, Id),
+	handle_rollback(T, RiakPid, Bucket);
+handle_rollback([], _RiakPid, _Bucket) ->
 	ok.
 
 -spec todo_tasks(pid(), binary()) -> [binary()].

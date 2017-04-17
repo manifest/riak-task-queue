@@ -31,8 +31,8 @@
 	list/2,
 	list/3,
 	open/4,
-	reopen/3,
-	reopen/4,
+	rollback/3,
+	rollback/4,
 	assign/4,
 	assign/5,
 	close/5
@@ -131,12 +131,12 @@ list(Pid, Index, Opts) ->
 open(Pid, Bucket, Id, Task) ->
 	put(Pid, Bucket, Id, riakc_map:to_op(Task)).
 
--spec reopen(pid(), bucket_and_type(), binary()) -> {ok, task()} | {error, any()}.
-reopen(Pid, Bucket, Id) ->
-	reopen(Pid, Bucket, Id, fun(T) -> T end).
+-spec rollback(pid(), bucket_and_type(), binary()) -> {ok, task()} | {error, any()}.
+rollback(Pid, Bucket, Id) ->
+	rollback(Pid, Bucket, Id, fun(T) -> T end).
 
--spec reopen(pid(), bucket_and_type(), binary(), fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
-reopen(Pid, Bucket, Id, Handle) ->
+-spec rollback(pid(), bucket_and_type(), binary(), fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
+rollback(Pid, Bucket, Id, Handle) ->
 	case find_expected(Pid, Bucket, Id, ?NEXTUP) of
 		{ok, T0} ->
 			T1 = Handle(T0),
