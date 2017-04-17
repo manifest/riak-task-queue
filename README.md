@@ -41,26 +41,24 @@ SchedulerConf =
     schedule_interval => timer:seconds(5)},
 supervisor:start_child(whereis(riaktq_sup), riaktq:child_spec(SchedulerConf)),
 
-%% Creating five instances with `riaktq_exec` handler,
+%% Creating five instances with `riaktq_echo` handler,
 %% and adding them to the supervision tree.
 InstanceConf =
-  #{module => riaktq_exec,
+  #{module => riaktq_echo,
     options => #{}},
 [ supervisor:start_child(
     whereis(riaktq_instance_sup),
-    riaktq:instance_child_spec(<<"exec-", (integer_to_binary(N))/binary>>, InstanceConf))
+    riaktq:instance_child_spec(<<"echo-", (integer_to_binary(N))/binary>>, InstanceConf))
   || N <- lists:seq(1, 5) ],
 
 %% Opening a new task
 Pid = riakc_pool:lock(riaktq_riakc),
-riaktq_task:open(Pid, Bucket, <<"task-1">>, riaktq_task:new(<<"ls -1 /tmp">>)).
+riaktq_task:open(Pid, Bucket, <<"task-1">>, riaktq_task:new(<<"echo">>)).
 
 %% Getting result
 {ok, Task1} = riakc_pb_socket:fetch_type(Pid, Bucket, <<"task-1">>),
-jsx:decode(riakc_map:fetch({<<"out">>, register}, Task1), [return_maps]).
-%% #{<<"exit_status">> => 0,
-%%   <<"stderr">> => [],
-%%   <<"stdout">> => [<<"a\nb\nc\n">>]}
+riakc_map:fetch({<<"out">>, register}, Task1).
+%% <<"echo">>
 ```
 
 

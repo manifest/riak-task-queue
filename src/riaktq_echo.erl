@@ -22,7 +22,7 @@
 %% IN THE SOFTWARE.
 %% ----------------------------------------------------------------------------
 
--module(riaktq_exec).
+-module(riaktq_echo).
 -behaviour(riaktq_task).
 
 %% API
@@ -41,22 +41,9 @@ init(_Opts) ->
 	{ok, ignore}.
 
 -spec handle(binary(), binary(), [binary()], any()) -> {ok | error, binary()}.
-handle(_Id, Cmd, _Tags, _State) ->
-	{Status, Result} = exec:run(binary_to_list(Cmd), [sync, stdout, stderr]),
-	StdOut = case lists:keyfind(stdout, 1, Result) of {_, StdOut0} -> StdOut0; _ -> [] end,
-	StdErr = case lists:keyfind(stderr, 1, Result) of {_, StdErr0} -> StdErr0; _ -> [] end,
-	ExitStatus =
-		case lists:keyfind(exit_status, 1, Result) of
-			{_, ExitStatus0} -> {_, ExitStatus1} = exec:status(ExitStatus0), ExitStatus1;
-			_                -> 0
-		end,
-
-	{	Status,
-		jsx:encode(
-			#{stdout => StdOut,
-				stderr => StdErr,
-				exit_status => ExitStatus}) }.
+handle(_Id, Input, _Tags, _State) ->
+	{ok, Input}.
 
 -spec tags(any()) -> [binary()].
 tags(_State) ->
-	[<<"exec">>].
+	[].

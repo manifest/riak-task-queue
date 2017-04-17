@@ -83,7 +83,6 @@ start_link(Conf) ->
 get(Pid) ->
 	gen_statem:call(Pid, {get}).
 
-%-spec put(pid(), [input()]) -> ok.
 -spec put(pid(), [input()]) -> ok.
 put(Pid, Input) ->
 	gen_statem:cast(Pid, {put, Input}).
