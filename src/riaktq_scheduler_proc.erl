@@ -106,8 +106,12 @@ handle_close([M|T], RiakPid, Bucket, Acc) ->
 		T3 = riakc_map:update({<<"laf">>, register}, fun(Obj) -> riakc_register:set(integer_to_binary(LastedFor), Obj) end, T2),
 		T3
 	end) of
-		{ok, _} -> handle_close(T, RiakPid, Bucket, [Id|Acc]);
-		_       -> handle_close(T, RiakPid, Bucket, Acc)
+		{ok, _}         -> handle_close(T, RiakPid, Bucket, [Id|Acc]);
+		{error, Reason} ->
+			%% Status of the task has been changed after execution.
+			%% We commit the task (to clean up the instance), but keep task's status.
+			?WARNING_REPORT([{reason, bad_status}, {exception_reason, Reason}]),
+			handle_close(T, RiakPid, Bucket, [Id|Acc])
 	end;
 handle_close([], _RiakPid, _Bucket, Acc) ->
 	Acc.
@@ -140,7 +144,7 @@ handle_rollback(TasksOnInstances, AssignedTasks, RiakPid, Bucket) ->
 
 -spec handle_rollback([binary()], pid(), bucket_and_type()) -> ok.
 handle_rollback([Id|T], RiakPid, Bucket) ->
-	%% Rollback a state of the losted task
+	%% Rollback a state of the lost task
 	_ = riaktq_task:rollback(RiakPid, Bucket, Id),
 	handle_rollback(T, RiakPid, Bucket);
 handle_rollback([], _RiakPid, _Bucket) ->
