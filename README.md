@@ -4,6 +4,45 @@ Permanent task queue with scheduler and multiple worker instances on top of Riak
 
 
 
+### Overview
+
+#### Tasks
+
+Above all, we have **tasks**. They describe the following properties:
+- **status**:
+	- `todo`, for the newly created tasks
+	- `nextup`, for tasks that have already been scheduled for execution
+	- `done` or `failed`, for complete tasks
+- **tags** (not implemented), features of the instance required for the task execution
+- **priority**, priority of the task
+- **assignee**, instance that have been chosen for the task execution
+- **in**, task's input
+- **output**, result of the task
+- **laf**, duration of the task execution
+- **sat**, time when task was started
+- **cat**, time when task was created
+
+![task-status][riak-task-queue-task-status-img]
+
+#### Worker Instances
+
+We have worker instances to execute tasks.
+Each of them manage its own input queue of tasks, executing one task per time in arrival order.
+When task is complete, it's moved to the output queue. The task remains there until it would be commited by scheduler.
+
+#### Scheduler
+
+To execute a task, we simply put it to Riak KV using `riaktq_task:open/4` function.
+Once per specified interval (1 minute by default), the scheduler:
+- commit tasks on instances that have already completed changing their status to `done` or `failed`
+- assign tasks with `todo` status to instances for future execution, changing their status to `nextup`
+- rollback lost tasks to `todo` status (in case of instance failure)
+
+Note that, the scheduler won't start a next iteration while the previous one in progress
+and there is could be many instances but only one scheduler.
+
+
+
 ### How To Use
 
 To build and start playing with the library, execute following commands in the shell:
@@ -65,3 +104,4 @@ riakc_map:fetch({<<"out">>, register}, Task1).
 The source code is provided under the terms of [the MIT license][license].
 
 [license]:http://www.opensource.org/licenses/MIT
+[riak-task-queue-task-status-img]:misc/task-status.png
