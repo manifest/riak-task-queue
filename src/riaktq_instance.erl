@@ -25,6 +25,8 @@
 -module(riaktq_instance).
 -behaviour(gen_statem).
 
+-include("riaktq_log.hrl").
+
 %% API
 -export([
 	start_link/1,
@@ -164,9 +166,7 @@ handle_put([Input|T], Qin) ->
 		[true = is_binary(Tag) || Tag <- Tags],
 		handle_put(T, queue:in(#{id => Id, in => In, tags => Tags}, Qin))
 	catch _:_ ->
-		error_logger:warning_report(
-			[	{?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY},
-				{bad_input, Input} ]),
+		?WARNING_REPORT([{reason, bad_input}, {input, Input}]),
 		handle_put(T, Qin)
 	end;
 handle_put([], Qin) ->

@@ -25,6 +25,7 @@
 -module(riaktq_scheduler_proc).
 
 -include_lib("riakc/include/riakc.hrl").
+-include("riaktq_log.hrl").
 
 %% API
 -export([
@@ -81,10 +82,8 @@ handle_instance_output([{Name, Pid, _, _}|T], RiakPid, Bucket, NextUpInstances, 
 				[{Pid, handle_close(Out, RiakPid, Bucket)}|TasksToCommit],
 				AddList(In, AddList(Out, TasksOnInstances)))
 	catch T:R ->
-		error_logger:error_report(
-			[	{?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY, erlang:get_stacktrace(), T, R},
-				{instance, Name} ]),
-			handle_instance_output(T, RiakPid, Bucket, NextUpInstances, TasksToCommit, TasksOnInstances)
+		?ERROR_REPORT([{reason, bad_output}, {instance, Name}], T, R),
+		handle_instance_output(T, RiakPid, Bucket, NextUpInstances, TasksToCommit, TasksOnInstances)
 	end;
 handle_instance_output([], _RiakPid, _Bucket, NextUpInstances, TasksToCommit, TasksOnInstances) ->
 	{NextUpInstances, TasksToCommit, TasksOnInstances}.

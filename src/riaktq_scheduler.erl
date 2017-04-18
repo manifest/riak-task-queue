@@ -26,6 +26,7 @@
 -behaviour(gen_statem).
 
 -include_lib("riakc/include/riakc.hrl").
+-include("riaktq_log.hrl").
 
 %% API
 -export([
@@ -99,7 +100,7 @@ handle_event(info, riaktq_schedule_done, busy, #state{hproc=#proc{ref=Href}} =Sd
 	{next_state, idle, Sdata#state{hproc=undefined}};
 %% Scheduling process is failed (Reason=/=normal): switch to the 'idle' state.
 handle_event(info, {'DOWN', Href, process, _Pid, Reason}, busy, #state{hproc=#proc{ref=Href}} =Sdata) when Reason =/= normal ->
-	error_logger:error_report([{?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY}, {scheduler_proc_exit, Reason}]),
+	?ERROR_REPORT([{reason, scheduler_proc_exit}, {exception_reason, Reason}]),
 	{next_state, idle, Sdata#state{hproc=undefined}};
 %% Keep running
 handle_event(_Mtype, _Mdata, _Sname, _Sdata) ->
