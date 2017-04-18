@@ -1,5 +1,7 @@
 # Riak Task Queue
 
+[![Build Status][travis-img]][travis]
+
 Permanent task queue with scheduler and multiple worker instances on top of Riak KV.
 
 
@@ -104,4 +106,6 @@ riakc_map:fetch({<<"out">>, register}, Task1).
 The source code is provided under the terms of [the MIT license][license].
 
 [license]:http://www.opensource.org/licenses/MIT
+[travis]:https://travis-ci.org/manifest/riak-task-queue?branch=master
+[travis-img]:https://secure.travis-ci.org/manifest/riak-task-queue.png?branch=master
 [riak-task-queue-task-status-img]:misc/task-status.png
