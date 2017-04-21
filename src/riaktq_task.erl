@@ -31,6 +31,7 @@
 	list/2,
 	list/3,
 	open/4,
+	open/5,
 	rollback/3,
 	rollback/4,
 	assign/4,
@@ -55,7 +56,7 @@
 -define(DONE, <<"done">>).
 
 %% Types
--type task()   :: riakc_map:crdt_map().
+-type task() :: riakc_map:crdt_map().
 
 -export_type([task/0]).
 
@@ -127,9 +128,13 @@ list(Pid, Index, Opts) ->
 		Else             -> exit({bad_return_value, Else})
 	end.
 
--spec open(pid(), bucket_and_type(), binary(), task()) -> ok.
-open(Pid, Bucket, Id, Task) ->
-	put(Pid, Bucket, Id, riakc_map:to_op(Task)).
+-spec open(pid(), bucket_and_type(), binary(), task()) -> task().
+open(Pid, Bucket, Id, T) ->
+	open(Pid, Bucket, Id, T, []).
+
+-spec open(pid(), bucket_and_type(), binary(), task(), [proplists:property()]) -> task().
+open(Pid, Bucket, Id, T, Opts) ->
+	put(Pid, Bucket, Id, T, Opts).
 
 -spec rollback(pid(), bucket_and_type(), binary()) -> {ok, task()} | {error, any()}.
 rollback(Pid, Bucket, Id) ->
@@ -142,7 +147,7 @@ rollback(Pid, Bucket, Id, Handle) ->
 			T1 = Handle(T0),
 			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(?TODO, Obj) end, T1),
 			T3 = riakc_map:erase({<<"assignee">>, register}, T2),
-			put(Pid, Bucket, Id, riakc_map:to_op(T3)),
+			put(Pid, Bucket, Id, T3),
 			{ok, T3};
 		ErrorReason ->
 			ErrorReason
@@ -159,7 +164,7 @@ assign(Pid, Bucket, Id, Assignee, Handle) ->
 			T1 = Handle(T0),
 			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(?NEXTUP, Obj) end, T1),
 			T3 = riakc_map:update({<<"assignee">>, register}, fun(Obj) -> riakc_register:set(Assignee, Obj) end, T2),
-			put(Pid, Bucket, Id, riakc_map:to_op(T3)),
+			put(Pid, Bucket, Id, T3),
 			{ok, T3};
 		ErrorReason ->
 			ErrorReason
@@ -171,7 +176,7 @@ close(Pid, Bucket, Id, Status, Handle) when Status =:= ?DONE; Status =:= ?FAILED
 		{ok, T0} ->
 			T1 = Handle(T0),
 			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(Status, Obj) end, T1),
-			put(Pid, Bucket, Id, riakc_map:to_op(T2)),
+			put(Pid, Bucket, Id, T2),
 			{ok, T2};
 		ErrorReason ->
 			ErrorReason
@@ -209,11 +214,16 @@ new_dt(Input, Tags, Status, Priority, CreatedAt) ->
 %% Internal functions
 %% =============================================================================
 
--spec put(pid(), bucket_and_type(), binary(), riakc_datatype:update(any())) -> ok.
-put(Pid, Bucket, Id, Op) ->
-	case catch riakc_pb_socket:update_type(Pid, Bucket, Id, Op, [{pw, quorum}]) of
-		ok                  -> ok;
-		{error, unmodified} -> ok;
+-spec put(pid(), bucket_and_type(), binary(), task()) -> task().
+put(Pid, Bucket, Id, T) ->
+	put(Pid, Bucket, Id, T, []).
+
+-spec put(pid(), bucket_and_type(), binary(), task(), [proplists:property()]) -> task().
+put(Pid, Bucket, Id, T, Opts) ->
+	case catch riakc_pb_socket:update_type(Pid, Bucket, Id, riakc_map:to_op(T), [{pw, quorum}|Opts]) of
+		ok                  -> T;
+		{ok, Tmodified}     -> Tmodified;
+		{error, unmodified} -> T;
 		{error, Reason}     -> exit(Reason);
 		{'EXIT', Reason}    -> exit(Reason);
 		Else                -> exit({bad_return_value, Else})
