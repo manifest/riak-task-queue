@@ -30,6 +30,11 @@
 -export([
 	list/2,
 	list/3,
+	get/3,
+	get/4,
+	get/5,
+	find/3,
+	find/4,
 	open/4,
 	open/5,
 	rollback/3,
@@ -126,6 +131,38 @@ list(Pid, Index, Opts) ->
 		{error, Reason}  -> exit(Reason);
 		{'EXIT', Reason} -> exit(Reason);
 		Else             -> exit({bad_return_value, Else})
+	end.
+
+-spec get(pid(), bucket_and_type(), binary()) -> task().
+get(Pid, Bucket, Key) ->
+	get(Pid, Bucket, Key, []).
+
+-spec get(pid(), bucket_and_type(), binary(), [proplists:property()]) -> task().
+get(Pid, Bucket, Key, Opts) ->
+	case find(Pid, Bucket, Key, Opts) of
+		{ok, Val} -> Val;
+		_         -> error({bad_key, Bucket, Key})
+	end.
+
+-spec get(pid(), bucket_and_type(), binary(), [proplists:property()], task()) -> task().
+get(Pid, Bucket, Key, Opts, Default) ->
+	case find(Pid, Bucket, Key, Opts) of
+		{ok, Val} -> Val;
+		_         -> Default
+	end.
+
+-spec find(pid(), bucket_and_type(), binary()) -> {ok, task()} | error.
+find(Pid, Bucket, Id) ->
+	find(Pid, Bucket, Id, []).
+
+-spec find(pid(), bucket_and_type(), binary(), [proplists:property()]) -> {ok, task()} | error.
+find(Pid, Bucket, Id, Opts) ->
+	case catch riakc_pb_socket:fetch_type(Pid, Bucket, Id, Opts) of
+		{ok, T}                    -> {ok, T};
+		{error, {notfound, _Type}} -> error;
+		{error, Reason}            -> exit(Reason);
+		{'EXIT', Reason}           -> exit(Reason);
+		Else                       -> exit({bad_return_value, Else})
 	end.
 
 -spec open(pid(), bucket_and_type(), binary(), task()) -> task().
