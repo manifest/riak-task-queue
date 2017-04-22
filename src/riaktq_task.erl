@@ -35,6 +35,8 @@
 	get/5,
 	find/3,
 	find/4,
+	remove/3,
+	remove/4,
 	open/4,
 	open/5,
 	rollback/3,
@@ -163,6 +165,19 @@ find(Pid, Bucket, Id, Opts) ->
 		{error, Reason}            -> exit(Reason);
 		{'EXIT', Reason}           -> exit(Reason);
 		Else                       -> exit({bad_return_value, Else})
+	end.
+
+-spec remove(pid(), bucket_and_type(), binary()) -> ok.
+remove(Pid, Bucket, Id) ->
+	remove(Pid, Bucket, Id, []).
+
+-spec remove(pid(), bucket_and_type(), binary(), [proplists:property()]) -> ok.
+remove(Pid, Bucket, Id, Opts) ->
+	case catch riakc_pb_socket:delete(Pid, Bucket, Id, Opts) of
+		ok               -> ok;
+		{error, Reason}  -> exit(Reason);
+		{'EXIT', Reason} -> exit(Reason);
+		Else             -> exit({bad_return_value, Else})
 	end.
 
 -spec open(pid(), bucket_and_type(), binary(), task()) -> task().
