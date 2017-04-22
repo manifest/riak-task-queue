@@ -2,7 +2,7 @@
 
 [![Build Status][travis-img]][travis]
 
-Permanent task queue with scheduler and multiple worker instances on top of Riak KV.
+Persistent task queue with scheduler and multiple worker instances on top of Riak KV.
 
 
 
