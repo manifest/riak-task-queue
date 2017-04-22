@@ -19,7 +19,7 @@ Above all, we have **tasks**. They describe the following properties:
 - **priority**, priority of the task
 - **assignee**, instance that have been chosen for the task execution
 - **in**, task's input
-- **output**, result of the task
+- **out**, output of the task
 - **laf**, duration of the task execution
 - **sat**, time when task was started
 - **cat**, time when task was created
