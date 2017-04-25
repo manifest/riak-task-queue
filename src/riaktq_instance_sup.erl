@@ -27,7 +27,7 @@
 
 %% API
 -export([
-	start_link/0
+	start_link/2
 ]).
 
 %% Supervisor callbacks
@@ -39,15 +39,14 @@
 %% API
 %% =============================================================================
 
--spec start_link() -> supervisor:startlink_ret().
-start_link() ->
-	supervisor:start_link({local, ?MODULE}, ?MODULE, {}).
+-spec start_link(atom(), [supervisor:child_spec()]) -> supervisor:startlink_ret().
+start_link(Group, HandlerSpecs) ->
+	supervisor:start_link({local, Group}, ?MODULE, {HandlerSpecs}).
 
 %% =============================================================================
 %% Supervisor callbacks
 %% =============================================================================
 
-init({}) ->
-  Flags = #{strategy => one_for_one},
-	Procs = [],
-  {ok, {Flags, Procs}}.
+init({HandlerSpecs}) ->
+	Flags = #{strategy => one_for_one},
+	{ok, {Flags, HandlerSpecs}}.

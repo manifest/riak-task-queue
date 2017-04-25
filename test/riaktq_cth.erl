@@ -115,8 +115,10 @@ init_riaktq_application(Bucket, Index, Interval, Host, Port) ->
 	supervisor:start_child(whereis(riaktq_sup), riakc_pool:child_spec(RiakPoolConf)),
 
 	%% Creating a scheduler and adding it to the supervision tree.
+	Group = riaktq_instance_sup,
 	SchedulerConf =
-		#{riak_connection_pool => riaktq_riakc,
+		#{group => Group,
+			riak_connection_pool => riaktq_riakc,
 			riak_bucket => Bucket,
 			riak_index => Index,
 			schedule_interval => Interval},
@@ -128,7 +130,7 @@ init_riaktq_application(Bucket, Index, Interval, Host, Port) ->
 		#{module => riaktq_echo,
 			options => #{}},
 	[ supervisor:start_child(
-			whereis(riaktq_instance_sup),
+			whereis(Group),
 			riaktq:instance_child_spec(<<"echo-", (integer_to_binary(N))/binary>>, InstanceConf))
 		|| N <- lists:seq(1, 5) ],
 

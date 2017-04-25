@@ -29,36 +29,36 @@
 
 %% API
 -export([
-	run/3
+	run/4
 ]).
 
 %% Internal callbacks
 -export([
-	loop/4
+	loop/5
 ]).
 
 %% =============================================================================
 %% API
 %% =============================================================================
 
--spec run(riakc_pool:name(), bucket_and_type(), binary()) -> {pid(), reference()}.
-run(Pool, Bucket, Index) ->
-	spawn_monitor(?MODULE, loop, [self(), Pool, Bucket, Index]).
+-spec run(atom(), riakc_pool:name(), bucket_and_type(), binary()) -> {pid(), reference()}.
+run(Group, Pool, Bucket, Index) ->
+	spawn_monitor(?MODULE, loop, [self(), Group, Pool, Bucket, Index]).
 
 %% =============================================================================
 %% Internal functions
 %% =============================================================================
 
--spec loop(pid(), riakc_pool:name(), bucket_and_type(), binary()) -> no_return().
-loop(Parent, Pool, Bucket, Index) ->
-	_ = handle(Pool, Bucket, Index),
+-spec loop(pid(), atom(), riakc_pool:name(), bucket_and_type(), binary()) -> no_return().
+loop(Parent, Group, Pool, Bucket, Index) ->
+	_ = handle(Group, Pool, Bucket, Index),
 	Parent ! riaktq_schedule_done.
 
--spec handle(riakc_pool:name(), bucket_and_type(), binary()) -> any().
-handle(Pool, Bucket, Index) ->
+-spec handle(atom(), riakc_pool:name(), bucket_and_type(), binary()) -> any().
+handle(Group, Pool, Bucket, Index) ->
 	RiakPid = riakc_pool:lock(Pool),
 	{NextUpInstances, TasksToCommit, TasksOnInstances} =
-		handle_instance_output(supervisor:which_children(riaktq_instance_sup), RiakPid, Bucket),
+		handle_instance_output(supervisor:which_children(Group), RiakPid, Bucket),
 
 	handle_commit(TasksToCommit),
 	handle_assign(NextUpInstances, todo_tasks(RiakPid, Index), RiakPid, Bucket),

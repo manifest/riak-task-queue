@@ -55,6 +55,7 @@
 
 -record(state, {
 	hproc  :: proc() | undefined,
+	group  :: atom(),
 	pool   :: riakc_pool:name(),
 	bucket :: bucket_and_type(),
 	index  :: binary(),
@@ -79,6 +80,7 @@ init(Conf) ->
 	Sdata =
 		#state{
 			pool = validate_riakc_pool(Conf),
+			group = validate_group(Conf),
 			bucket = validate_riak_bucket(Conf),
 			index = validate_riak_index(Conf),
 			tint = validate_schedule_interval(Conf, ?DEFAULT_SCHEDULE_INTERVAL),
@@ -87,8 +89,8 @@ init(Conf) ->
 	{ok, idle, Sdata}.
 
 %% We aren't scheduling tasks at the moment (hproc=undefined): start do it and switch to the 'busy' state.
-handle_event(internal, try_schedule_tasks, _Sname, #state{hproc=undefined, pool=P, bucket=B, index=I} =Sdata) ->
-	{Hpid, Href} = riaktq_scheduler_proc:run(P, B, I),
+handle_event(internal, try_schedule_tasks, _Sname, #state{hproc=undefined, group=G, pool=P, bucket=B, index=I} =Sdata) ->
+	{Hpid, Href} = riaktq_scheduler_proc:run(G, P, B, I),
 	{next_state, busy, Sdata#state{hproc=#proc{pid=Hpid, ref=Href}}};
 %% Time to obtain and schedule tasks: restart the timer and try to do it.
 handle_event(info, {timeout, Tref0, Tmsg}, _Sname, #state{tint=Tint, tref=Tref0} =Sdata) ->
@@ -123,6 +125,11 @@ code_change(_VSN, State, Data, _Extra) ->
 handle_timer(Ref, Interval, Message) ->
 	_ = erlang:cancel_timer(Ref),
 	erlang:start_timer(Interval, self(), Message).
+
+-spec validate_group(map()) -> atom().
+validate_group(#{group := Val}) when is_atom(Val) -> Val;
+validate_group(#{group := Val})                   -> error({invalid_group, Val});
+validate_group(_)                                 -> error(missing_group).
 
 -spec validate_riakc_pool(map()) -> atom().
 validate_riakc_pool(#{riak_connection_pool := Val}) when is_atom(Val) -> Val;

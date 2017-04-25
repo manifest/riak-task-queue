@@ -61,7 +61,7 @@ Here is a minimal example:
 ```erlang
 %% Creating a pool of Riak KV connections and adding it to the supervision tree.
 RiakPoolConf =
-  #{name => riaktq_riakc,
+  #{name => kv_protobuf,
     size => 5,
     connection =>
       #{host => "192.168.99.100",
@@ -72,8 +72,10 @@ supervisor:start_child(whereis(riaktq_sup), riakc_pool:child_spec(RiakPoolConf))
 %% Creating a scheduler and adding it to the supervision tree.
 Bucket = {<<"riaktq_task_t">>, <<"task">>},
 Index = <<"riaktq_task_idx">>,
+Group = riaktq_instance_sup,
 SchedulerConf =
-  #{riak_connection_pool => riaktq_riakc,
+  #{group => Group,
+    riak_connection_pool => kv_protobuf,
     riak_bucket => Bucket,
     riak_index => Index,
     schedule_interval => timer:seconds(5)},
@@ -85,16 +87,16 @@ InstanceConf =
   #{module => riaktq_echo,
     options => #{}},
 [ supervisor:start_child(
-    whereis(riaktq_instance_sup),
+    whereis(Group),
     riaktq:instance_child_spec(<<"echo-", (integer_to_binary(N))/binary>>, InstanceConf))
   || N <- lists:seq(1, 5) ],
 
 %% Opening a new task
-Pid = riakc_pool:lock(riaktq_riakc),
-riaktq_task:open(Pid, Bucket, <<"task-1">>, riaktq_task:new_dt(<<"echo">>)).
+Pid = riakc_pool:lock(kv_protobuf),
+riaktq_task:open(Pid, Bucket, <<"task-42">>, riaktq_task:new_dt(<<"echo">>)).
 
 %% Getting result
-{ok, Task1} = riakc_pb_socket:fetch_type(Pid, Bucket, <<"task-1">>),
+Task1 = riaktq_task:get(Pid, Bucket, <<"task-42">>),
 riakc_map:fetch({<<"out">>, register}, Task1).
 %% <<"echo">>
 ```

@@ -60,5 +60,5 @@ init({}) ->
 instance_supervisor_spec() ->
   Mod = riaktq_instance_sup,
   #{id => Mod,
-    start => {Mod, start_link, []},
+    start => {Mod, start_link, [Mod, []]},
     type => supervisor}.
