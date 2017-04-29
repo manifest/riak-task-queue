@@ -34,7 +34,7 @@ When task is complete, it's moved to the output queue. The task remains there un
 
 #### Scheduler
 
-To execute a task, we simply put it to Riak KV using `riaktq_task:open/4` function.
+To execute a task, we simply put it to Riak KV using `riaktq_task:open/{4,5}` functions.
 Once per specified interval (1 minute by default), the scheduler:
 - commit tasks on instances that have already completed changing their status to `done` or `failed`
 - assign tasks with `todo` status to instances for future execution, changing their status to `nextup`
@@ -69,6 +69,11 @@ RiakPoolConf =
         options => [queue_if_disconnected]}},
 supervisor:start_child(whereis(riaktq_sup), riakc_pool:child_spec(RiakPoolConf)),
 
+%% We could register an event manager to receive state transitions of tasks.
+EventManager = riaktq_eventm,
+supervisor:start_child(whereis(riaktq_sup), riaktq:eventm_task_spec(EventManager)),
+riaktq_eventm_task:subscribe(EventManager),
+
 %% Creating a scheduler and adding it to the supervision tree.
 Bucket = {<<"riaktq_task_t">>, <<"task">>},
 Index = <<"riaktq_task_idx">>,
@@ -78,8 +83,9 @@ SchedulerConf =
     riak_connection_pool => kv_protobuf,
     riak_bucket => Bucket,
     riak_index => Index,
+    event_manager => EventManager,
     schedule_interval => timer:seconds(5)},
-supervisor:start_child(whereis(riaktq_sup), riaktq:child_spec(SchedulerConf)),
+supervisor:start_child(whereis(riaktq_sup), riaktq:scheduler_spec(SchedulerConf)),
 
 %% Creating five instances with `riaktq_echo` handler,
 %% and adding them to the supervision tree.
@@ -88,7 +94,7 @@ InstanceConf =
     options => #{}},
 [ supervisor:start_child(
     whereis(Group),
-    riaktq:instance_child_spec(<<"echo-", (integer_to_binary(N))/binary>>, InstanceConf))
+    riaktq:instance_spec(<<"echo-", (integer_to_binary(N))/binary>>, InstanceConf))
   || N <- lists:seq(1, 5) ],
 
 %% Opening a new task
@@ -96,9 +102,43 @@ Pid = riakc_pool:lock(kv_protobuf),
 riaktq_task:open(Pid, Bucket, <<"task-42">>, riaktq_task:new_dt(<<"echo">>)).
 
 %% Getting result
-Task1 = riaktq_task:get(Pid, Bucket, <<"task-42">>),
-riakc_map:fetch({<<"out">>, register}, Task1).
+Task = riaktq_task:get(Pid, Bucket, <<"task-42">>),
+riakc_map:fetch({<<"out">>, register}, Task).
 %% <<"echo">>
+
+flush().
+%% Shell got {riaktq_task_transition,assign,
+%%               {<<"riaktq_task_t">>,<<"task">>},
+%%               <<"task-42">>,
+%%               {map,
+%%                   [{{<<"cat">>,register},<<"1493492578516563">>},
+%%                    {{<<"in">>,register},<<"echo">>},
+%%                    {{<<"priority">>,register},<<"0">>},
+%%                    {{<<"status">>,register},<<"todo">>}],
+%%                   [{{<<"assignee">>,register},{register,<<>>,<<"echo-1">>}},
+%%                    {{<<"status">>,register},
+%%                     {register,<<"todo">>,<<"nextup">>}}],
+%%                   [],
+%%                   <<131,108,0,0,0,1,104,2,109,0,0,0,12,35,9,254,249,141,112,
+%%                     203,70,0,0,0,1,97,1,106>>}}
+%% Shell got {riaktq_task_transition,close,
+%%               {<<"riaktq_task_t">>,<<"task">>},
+%%               <<"task-42">>,
+%%               {map,
+%%                   [{{<<"assignee">>,register},<<"echo-1">>},
+%%                    {{<<"cat">>,register},<<"1493492578516563">>},
+%%                    {{<<"in">>,register},<<"echo">>},
+%%                    {{<<"priority">>,register},<<"0">>},
+%%                    {{<<"status">>,register},<<"nextup">>}],
+%%                   [{{<<"laf">>,register},{register,<<>>,<<"20">>}},
+%%                    {{<<"out">>,register},{register,<<>>,<<"echo">>}},
+%%                    {{<<"sat">>,register},
+%%                     {register,<<>>,<<"1493492583576561">>}},
+%%                    {{<<"status">>,register},
+%%                     {register,<<"nextup">>,<<"done">>}}],
+%%                   [],
+%%                   <<131,108,0,0,0,1,104,2,109,0,0,0,12,35,9,254,249,141,112,
+%%                     203,70,0,0,0,1,97,2,106>>}}
 ```
 
 

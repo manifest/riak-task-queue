@@ -36,14 +36,19 @@
 	find/3,
 	find/4,
 	remove/3,
-	remove/4,
+	remove/4
+]).
+
+%% Transition API
+-export([
 	open/4,
 	open/5,
 	rollback/3,
-	rollback/4,
+	rollback/5,
 	assign/4,
-	assign/5,
-	close/5
+	assign/6,
+	close/5,
+	close/6
 ]).
 
 %% DataType API
@@ -180,6 +185,10 @@ remove(Pid, Bucket, Id, Opts) ->
 		Else             -> exit({bad_return_value, Else})
 	end.
 
+%% =============================================================================
+%% Transition API
+%% =============================================================================
+
 -spec open(pid(), bucket_and_type(), binary(), task()) -> task().
 open(Pid, Bucket, Id, T) ->
 	open(Pid, Bucket, Id, T, []).
@@ -190,16 +199,16 @@ open(Pid, Bucket, Id, T, Opts) ->
 
 -spec rollback(pid(), bucket_and_type(), binary()) -> {ok, task()} | {error, any()}.
 rollback(Pid, Bucket, Id) ->
-	rollback(Pid, Bucket, Id, fun(T) -> T end).
+	rollback(Pid, Bucket, Id, [], fun(T) -> T end).
 
--spec rollback(pid(), bucket_and_type(), binary(), fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
-rollback(Pid, Bucket, Id, Handle) ->
+-spec rollback(pid(), bucket_and_type(), binary(), [proplists:priority()], fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
+rollback(Pid, Bucket, Id, Opts, Handle) ->
 	case find_expected(Pid, Bucket, Id, ?NEXTUP) of
 		{ok, T0} ->
 			T1 = Handle(T0),
 			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(?TODO, Obj) end, T1),
 			T3 = riakc_map:erase({<<"assignee">>, register}, T2),
-			put(Pid, Bucket, Id, T3),
+			put(Pid, Bucket, Id, T3, Opts),
 			{ok, T3};
 		ErrorReason ->
 			ErrorReason
@@ -207,16 +216,16 @@ rollback(Pid, Bucket, Id, Handle) ->
 
 -spec assign(pid(), bucket_and_type(), binary(), binary()) -> {ok, task()} | {error, any()}.
 assign(Pid, Bucket, Id, Assignee) ->
-	assign(Pid, Bucket, Id, Assignee, fun(T) -> T end).
+	assign(Pid, Bucket, Id, Assignee, [], fun(T) -> T end).
 
--spec assign(pid(), bucket_and_type(), binary(), binary(), fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
-assign(Pid, Bucket, Id, Assignee, Handle) ->
+-spec assign(pid(), bucket_and_type(), binary(), binary(), [proplists:property()], fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
+assign(Pid, Bucket, Id, Assignee, Opts, Handle) ->
 	case find_expected(Pid, Bucket, Id, ?TODO) of
 		{ok, T0} ->
 			T1 = Handle(T0),
 			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(?NEXTUP, Obj) end, T1),
 			T3 = riakc_map:update({<<"assignee">>, register}, fun(Obj) -> riakc_register:set(Assignee, Obj) end, T2),
-			put(Pid, Bucket, Id, T3),
+			put(Pid, Bucket, Id, T3, Opts),
 			{ok, T3};
 		ErrorReason ->
 			ErrorReason
@@ -224,16 +233,20 @@ assign(Pid, Bucket, Id, Assignee, Handle) ->
 
 -spec close(pid(), bucket_and_type(), binary(), binary(), fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
 close(Pid, Bucket, Id, Status, Handle) when Status =:= ?DONE; Status =:= ?FAILED ->
+	close(Pid, Bucket, Id, Status, [], Handle).
+
+-spec close(pid(), bucket_and_type(), binary(), binary(), [proplists:priority()], fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
+close(Pid, Bucket, Id, Status, Opts, Handle) when Status =:= ?DONE; Status =:= ?FAILED ->
 	case find_expected(Pid, Bucket, Id, ?NEXTUP) of
 		{ok, T0} ->
 			T1 = Handle(T0),
 			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(Status, Obj) end, T1),
-			put(Pid, Bucket, Id, T2),
+			put(Pid, Bucket, Id, T2, Opts),
 			{ok, T2};
 		ErrorReason ->
 			ErrorReason
 	end;
-close(_Pid, _Bucket, _Id, Status, _Handle) ->
+close(_Pid, _Bucket, _Id, Status, _Opts, _Handle) ->
 	{error, {bad_status, Status}}.
 
 %% =============================================================================
@@ -265,10 +278,6 @@ new_dt(Input, Tags, Status, Priority, CreatedAt) ->
 %% =============================================================================
 %% Internal functions
 %% =============================================================================
-
--spec put(pid(), bucket_and_type(), binary(), task()) -> task().
-put(Pid, Bucket, Id, T) ->
-	put(Pid, Bucket, Id, T, []).
 
 -spec put(pid(), bucket_and_type(), binary(), task(), [proplists:property()]) -> task().
 put(Pid, Bucket, Id, T, Opts) ->

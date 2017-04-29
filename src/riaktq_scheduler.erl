@@ -59,6 +59,7 @@
 	pool   :: riakc_pool:name(),
 	bucket :: bucket_and_type(),
 	index  :: binary(),
+	eventm :: atom() | undefined,
 	tint   :: non_neg_integer(),
 	tref   :: reference()
 }).
@@ -83,14 +84,15 @@ init(Conf) ->
 			group = validate_group(Conf),
 			bucket = validate_riak_bucket(Conf),
 			index = validate_riak_index(Conf),
+			eventm = validate_event_manager(Conf, undefined),
 			tint = validate_schedule_interval(Conf, ?DEFAULT_SCHEDULE_INTERVAL),
 			tref = erlang:start_timer(0, self(), try_schedule_tasks)},
 
 	{ok, idle, Sdata}.
 
 %% We aren't scheduling tasks at the moment (hproc=undefined): start do it and switch to the 'busy' state.
-handle_event(internal, try_schedule_tasks, _Sname, #state{hproc=undefined, group=G, pool=P, bucket=B, index=I} =Sdata) ->
-	{Hpid, Href} = riaktq_scheduler_proc:run(G, P, B, I),
+handle_event(internal, try_schedule_tasks, _Sname, #state{hproc=undefined, group=G, pool=P, bucket=B, index=I, eventm=EvM} =Sdata) ->
+	{Hpid, Href} = riaktq_scheduler_proc:run(G, P, B, I, EvM),
 	{next_state, busy, Sdata#state{hproc=#proc{pid=Hpid, ref=Href}}};
 %% Time to obtain and schedule tasks: restart the timer and try to do it.
 handle_event(info, {timeout, Tref0, Tmsg}, _Sname, #state{tint=Tint, tref=Tref0} =Sdata) ->
@@ -135,6 +137,11 @@ validate_group(_)                                 -> error(missing_group).
 validate_riakc_pool(#{riak_connection_pool := Val}) when is_atom(Val) -> Val;
 validate_riakc_pool(#{riak_connection_pool := Val})                   -> error({invalid_riak_connection_pool, Val});
 validate_riakc_pool(_)                                                -> error(missing_riak_connection_pool).
+
+-spec validate_event_manager(map(), atom()) -> atom().
+validate_event_manager(#{event_manager := Val}, _) when is_atom(Val) -> Val;
+validate_event_manager(#{event_manager := Val}, _)                   -> error({invalid_event_manager, Val});
+validate_event_manager(_, Default)                                   -> Default.
 
 -spec validate_schedule_interval(map(), non_neg_integer()) -> non_neg_integer().
 validate_schedule_interval(#{schedule_interval := Val}, _) when is_integer(Val), Val > 0 -> Val;

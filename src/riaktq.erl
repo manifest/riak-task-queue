@@ -26,8 +26,9 @@
 
 %% API
 -export([
-	child_spec/1,
-	instance_child_spec/2,
+	scheduler_spec/1,
+	instance_spec/2,
+	eventm_task_spec/1,
 	unix_time_us/0,
 	unix_time_us/1
 ]).
@@ -39,17 +40,23 @@
 %% API
 %% =============================================================================
 
--spec child_spec(map()) -> supervisor:child_spec().
-child_spec(Conf) ->
+-spec scheduler_spec(map()) -> supervisor:child_spec().
+scheduler_spec(Conf) ->
   Mod = riaktq_scheduler,
   #{id => Mod,
     start => {Mod, start_link, [Conf]},
     restart => permanent}.
 
--spec instance_child_spec(binary(), map()) -> supervisor:child_spec().
-instance_child_spec(Name, Conf) ->
+-spec instance_spec(binary(), map()) -> supervisor:child_spec().
+instance_spec(Name, Conf) ->
   #{id => Name,
     start => {riaktq_instance, start_link, [Conf]},
+    restart => permanent}.
+
+-spec eventm_task_spec(atom()) -> supervisor:child_spec().
+eventm_task_spec(Name) ->
+  #{id => Name,
+    start => {riaktq_eventm_task, start_link, [Name]},
     restart => permanent}.
 
 -spec unix_time_us() -> non_neg_integer().

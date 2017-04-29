@@ -42,19 +42,21 @@
 
 -spec init_config() -> list().
 init_config() ->
-	try
-		{ok, S, _} = erl_scan:string(os:getenv("DEVELOP_ENVIRONMENT")),
-		{ok, Conf} = erl_parse:parse_term(S),
+	Config =
+		try
+			{ok, S, _} = erl_scan:string(os:getenv("DEVELOP_ENVIRONMENT")),
+			{ok, Conf} = erl_parse:parse_term(S),
+			maps:fold(fun(Key, Val, Acc) -> [{Key, Val}|Acc] end, [], Conf)
+		catch _:Reason -> error({missing_develop_environment, ?FUNCTION_NAME, Reason}) end,
 
-		#{kv_protobuf := #{host := Host, port := Port}} = Conf,
-		Bucket = {<<"riaktq_task_t">>, <<"task">>},
-		Index = <<"riaktq_task_idx">>,
-		Interval = timer:seconds(2),
-		init_riaktq_application(Bucket, Index, Interval, Host, Port),
-		L0 = [{bucket, Bucket}, {index, Index}, {pool, riaktq_riakc}, {interval, Interval}],
+	{_, #{host := Host, port := Port}} = lists:keyfind(kv_protobuf, 1, Config),
+	KVpool = kv_protobuf,
+	Bucket = {<<"riaktq_task_t">>, <<"task">>},
+	Index = <<"riaktq_task_idx">>,
+	Interval = timer:seconds(2),
+	init_riaktq_application(KVpool, Bucket, Index, Interval, Host, Port),
 
-		maps:fold(fun(Key, Val, Acc) -> [{Key, Val}|Acc] end, L0, Conf)
-	catch _:Reason -> error({missing_develop_environment, ?FUNCTION_NAME, Reason}) end.
+	[{bucket, Bucket}, {index, Index}, {pool, KVpool}, {interval, Interval} | Config].
 
 -spec task_open(binary(), riaktq_riakc:task(), list()) -> pid().
 task_open(Tid, Tobj, Config) ->
@@ -103,10 +105,10 @@ wait(Pid, Bucket, Tid, N, Timeout) ->
 		_          -> timer:sleep(Timeout), wait(Pid, Bucket, Tid, N -1, Timeout)
 	end.
 
--spec init_riaktq_application(binary(), binary(), non_neg_integer(), binary(), non_neg_integer()) -> ok.
-init_riaktq_application(Bucket, Index, Interval, Host, Port) ->
+-spec init_riaktq_application(atom(), binary(), binary(), non_neg_integer(), binary(), non_neg_integer()) -> ok.
+init_riaktq_application(KVpool, Bucket, Index, Interval, Host, Port) ->
 	RiakPoolConf =
-		#{name => riaktq_riakc,
+		#{name => KVpool,
 			size => 5,
 			connection =>
 				#{host => Host,
@@ -118,11 +120,11 @@ init_riaktq_application(Bucket, Index, Interval, Host, Port) ->
 	Group = riaktq_instance_sup,
 	SchedulerConf =
 		#{group => Group,
-			riak_connection_pool => riaktq_riakc,
+			riak_connection_pool => KVpool,
 			riak_bucket => Bucket,
 			riak_index => Index,
 			schedule_interval => Interval},
-	supervisor:start_child(whereis(riaktq_sup), riaktq:child_spec(SchedulerConf)),
+	supervisor:start_child(whereis(riaktq_sup), riaktq:scheduler_spec(SchedulerConf)),
 
 	%% Creating five instances with `riaktq_echo` handler,
 	%% and adding them to the supervision tree.
@@ -131,7 +133,7 @@ init_riaktq_application(Bucket, Index, Interval, Host, Port) ->
 			options => #{}},
 	[ supervisor:start_child(
 			whereis(Group),
-			riaktq:instance_child_spec(<<"echo-", (integer_to_binary(N))/binary>>, InstanceConf))
+			riaktq:instance_spec(<<"echo-", (integer_to_binary(N))/binary>>, InstanceConf))
 		|| N <- lists:seq(1, 5) ],
 
 	ok.
