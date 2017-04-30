@@ -6,7 +6,8 @@
 %% API
 -export([
 	start_link/1,
-	report_transition/5,
+	report_transition_data/5,
+	report_transition_error/5,
 	subscribe/1,
 	unsubscribe/1
 ]).
@@ -29,8 +30,10 @@
 	listener :: pid()
 }).
 
--type transition_event() :: {riaktq_task_transition, atom(), bucket_and_type(), binary(), riaktq_task:task()}.
--type event()            :: transition_event().
+-type transition_event()
+	:: {riaktq_task_transition_data, Name :: atom(), Bucket :: bucket_and_type(), Id :: binary(), Data :: riaktq_task:task()}
+	 | {riaktq_task_transition_error, Name :: atom(), Bucket :: bucket_and_type(), Id :: binary(), Reason :: any()}.
+-type event() :: transition_event().
 
 -export_type([event/0]).
 
@@ -42,9 +45,13 @@
 start_link(Name) ->
 	gen_event:start_link({local, Name}).
 
--spec report_transition(atom(), atom(), bucket_and_type(), binary(), riaktq_task:task()) -> ok.
-report_transition(Ref, Transition, Bucket, Id, Task) ->
-	gen_event:notify(Ref, {riaktq_task_transition, Transition, Bucket, Id, Task}).
+-spec report_transition_data(atom(), atom(), bucket_and_type(), binary(), riaktq_task:task()) -> ok.
+report_transition_data(Ref, Transition, Bucket, Id, Task) ->
+	gen_event:notify(Ref, {riaktq_task_transition_data, Transition, Bucket, Id, Task}).
+
+-spec report_transition_error(atom(), atom(), bucket_and_type(), binary(), any()) -> ok.
+report_transition_error(Ref, Transition, Bucket, Id, Reason) ->
+	gen_event:notify(Ref, {riaktq_task_transition_error, Transition, Bucket, Id, Reason}).
 
 -spec subscribe(atom()) -> gen_event:add_handler_ret().
 subscribe(Ref) ->

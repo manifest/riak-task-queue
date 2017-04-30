@@ -107,11 +107,11 @@ riakc_map:fetch({<<"out">>, register}, Task).
 %% <<"echo">>
 
 flush().
-%% Shell got {riaktq_task_transition,assign,
+%% Shell got {riaktq_task_transition_data,assign,
 %%               {<<"riaktq_task_t">>,<<"task">>},
 %%               <<"task-42">>,
 %%               {map,
-%%                   [{{<<"cat">>,register},<<"1493492578516563">>},
+%%                   [{{<<"cat">>,register},<<"1493552444228474">>},
 %%                    {{<<"in">>,register},<<"echo">>},
 %%                    {{<<"priority">>,register},<<"0">>},
 %%                    {{<<"status">>,register},<<"todo">>}],
@@ -119,26 +119,26 @@ flush().
 %%                    {{<<"status">>,register},
 %%                     {register,<<"todo">>,<<"nextup">>}}],
 %%                   [],
-%%                   <<131,108,0,0,0,1,104,2,109,0,0,0,12,35,9,254,249,141,112,
-%%                     203,70,0,0,0,1,97,1,106>>}}
-%% Shell got {riaktq_task_transition,close,
+%%                   <<131,108,0,0,0,1,104,2,109,0,0,0,12,35,9,254,249,150,165,
+%%                     185,51,0,0,0,1,97,1,106>>}}
+%% Shell got {riaktq_task_transition_data,close,
 %%               {<<"riaktq_task_t">>,<<"task">>},
 %%               <<"task-42">>,
 %%               {map,
 %%                   [{{<<"assignee">>,register},<<"echo-1">>},
-%%                    {{<<"cat">>,register},<<"1493492578516563">>},
+%%                    {{<<"cat">>,register},<<"1493552444228474">>},
 %%                    {{<<"in">>,register},<<"echo">>},
 %%                    {{<<"priority">>,register},<<"0">>},
 %%                    {{<<"status">>,register},<<"nextup">>}],
-%%                   [{{<<"laf">>,register},{register,<<>>,<<"20">>}},
+%%                   [{{<<"laf">>,register},{register,<<>>,<<"18">>}},
 %%                    {{<<"out">>,register},{register,<<>>,<<"echo">>}},
 %%                    {{<<"sat">>,register},
-%%                     {register,<<>>,<<"1493492583576561">>}},
+%%                     {register,<<>>,<<"1493552449284949">>}},
 %%                    {{<<"status">>,register},
 %%                     {register,<<"nextup">>,<<"done">>}}],
 %%                   [],
-%%                   <<131,108,0,0,0,1,104,2,109,0,0,0,12,35,9,254,249,141,112,
-%%                     203,70,0,0,0,1,97,2,106>>}}
+%%                   <<131,108,0,0,0,1,104,2,109,0,0,0,12,35,9,254,249,150,165,
+%%                     185,51,0,0,0,1,97,2,106>>}}
 ```
 
 

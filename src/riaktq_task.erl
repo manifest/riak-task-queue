@@ -68,9 +68,10 @@
 -define(DONE, <<"done">>).
 
 %% Types
--type task() :: riakc_map:crdt_map().
+-type task()              :: riakc_map:crdt_map().
+-type transition_result() :: {ok, task()} | {error, any()}.
 
--export_type([task/0]).
+-export_type([task/0, transition_result/0]).
 
 %% Callbacks
 %% State is initialized once and then it's shared across the task handlers.
@@ -197,11 +198,11 @@ open(Pid, Bucket, Id, T) ->
 open(Pid, Bucket, Id, T, Opts) ->
 	put(Pid, Bucket, Id, T, Opts).
 
--spec rollback(pid(), bucket_and_type(), binary()) -> {ok, task()} | {error, any()}.
+-spec rollback(pid(), bucket_and_type(), binary()) -> transition_result().
 rollback(Pid, Bucket, Id) ->
 	rollback(Pid, Bucket, Id, [], fun(T) -> T end).
 
--spec rollback(pid(), bucket_and_type(), binary(), [proplists:priority()], fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
+-spec rollback(pid(), bucket_and_type(), binary(), [proplists:priority()], fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> transition_result().
 rollback(Pid, Bucket, Id, Opts, Handle) ->
 	case find_expected(Pid, Bucket, Id, ?NEXTUP) of
 		{ok, T0} ->
@@ -214,11 +215,11 @@ rollback(Pid, Bucket, Id, Opts, Handle) ->
 			ErrorReason
 	end.
 
--spec assign(pid(), bucket_and_type(), binary(), binary()) -> {ok, task()} | {error, any()}.
+-spec assign(pid(), bucket_and_type(), binary(), binary()) -> transition_result().
 assign(Pid, Bucket, Id, Assignee) ->
 	assign(Pid, Bucket, Id, Assignee, [], fun(T) -> T end).
 
--spec assign(pid(), bucket_and_type(), binary(), binary(), [proplists:property()], fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
+-spec assign(pid(), bucket_and_type(), binary(), binary(), [proplists:property()], fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> transition_result().
 assign(Pid, Bucket, Id, Assignee, Opts, Handle) ->
 	case find_expected(Pid, Bucket, Id, ?TODO) of
 		{ok, T0} ->
@@ -231,11 +232,11 @@ assign(Pid, Bucket, Id, Assignee, Opts, Handle) ->
 			ErrorReason
 	end.
 
--spec close(pid(), bucket_and_type(), binary(), binary(), fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
+-spec close(pid(), bucket_and_type(), binary(), binary(), fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> transition_result().
 close(Pid, Bucket, Id, Status, Handle) when Status =:= ?DONE; Status =:= ?FAILED ->
 	close(Pid, Bucket, Id, Status, [], Handle).
 
--spec close(pid(), bucket_and_type(), binary(), binary(), [proplists:priority()], fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> {ok, task()} | {error, any()}.
+-spec close(pid(), bucket_and_type(), binary(), binary(), [proplists:priority()], fun((riakc_datatype:datatype()) -> riakc_datatype:datatype())) -> transition_result().
 close(Pid, Bucket, Id, Status, Opts, Handle) when Status =:= ?DONE; Status =:= ?FAILED ->
 	case find_expected(Pid, Bucket, Id, ?NEXTUP) of
 		{ok, T0} ->
@@ -290,7 +291,7 @@ put(Pid, Bucket, Id, T, Opts) ->
 		Else                -> exit({bad_return_value, Else})
 	end.
 
--spec find_expected(pid(), bucket_and_type(), binary(), binary()) -> {ok, task()} | {error, any()}.
+-spec find_expected(pid(), bucket_and_type(), binary(), binary()) -> transition_result().
 find_expected(Pid, Bucket, Id, ExpectedStatus) ->
 	case catch riakc_pb_socket:fetch_type(Pid, Bucket, Id, [{pr, quorum}]) of
 		{ok, T} ->
