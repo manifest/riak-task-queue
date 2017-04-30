@@ -209,8 +209,8 @@ rollback(Pid, Bucket, Id, Opts, Handle) ->
 			T1 = Handle(T0),
 			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(?TODO, Obj) end, T1),
 			T3 = riakc_map:erase({<<"assignee">>, register}, T2),
-			put(Pid, Bucket, Id, T3, Opts),
-			{ok, T3};
+			T4 = put(Pid, Bucket, Id, T3, Opts),
+			{ok, T4};
 		ErrorReason ->
 			ErrorReason
 	end.
@@ -226,8 +226,8 @@ assign(Pid, Bucket, Id, Assignee, Opts, Handle) ->
 			T1 = Handle(T0),
 			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(?NEXTUP, Obj) end, T1),
 			T3 = riakc_map:update({<<"assignee">>, register}, fun(Obj) -> riakc_register:set(Assignee, Obj) end, T2),
-			put(Pid, Bucket, Id, T3, Opts),
-			{ok, T3};
+			T4 = put(Pid, Bucket, Id, T3, Opts),
+			{ok, T4};
 		ErrorReason ->
 			ErrorReason
 	end.
@@ -242,8 +242,8 @@ close(Pid, Bucket, Id, Status, Opts, Handle) when Status =:= ?DONE; Status =:= ?
 		{ok, T0} ->
 			T1 = Handle(T0),
 			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(Status, Obj) end, T1),
-			put(Pid, Bucket, Id, T2, Opts),
-			{ok, T2};
+			T3 = put(Pid, Bucket, Id, T2, Opts),
+			{ok, T3};
 		ErrorReason ->
 			ErrorReason
 	end;
