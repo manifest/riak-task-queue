@@ -42,8 +42,8 @@
 %% =============================================================================
 
 -spec start_link(atom()) -> {ok, pid()}.
-start_link(Name) ->
-	gen_event:start_link({local, Name}).
+start_link(Ref) ->
+	gen_event:start_link({local, Ref}).
 
 -spec report_transition_data(atom(), atom(), bucket_and_type(), binary(), riaktq_task:task()) -> ok.
 report_transition_data(Ref, Transition, Bucket, Id, Task) ->

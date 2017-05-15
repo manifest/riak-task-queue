@@ -70,7 +70,7 @@
 
 -spec start_link(map()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(Conf) ->
-	gen_statem:start_link({local, ?MODULE}, ?MODULE, Conf, []).
+	gen_statem:start_link(?MODULE, Conf, []).
 
 %% =============================================================================
 %% GenStateM callbacks
