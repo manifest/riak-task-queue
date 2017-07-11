@@ -62,7 +62,7 @@ handle(Group, Pool, Bucket, Index, EvM) ->
 
 	handle_commit(TasksToCommit),
 	handle_assign(NextUpInstances, todo_tasks(KVpid, Index, Bucket), KVpid, Bucket, EvM),
-	handle_rollback(TasksOnInstances, gb_sets:from_list(assigned_tasks(KVpid, Index)), KVpid, Bucket, EvM),
+	handle_rollback(TasksOnInstances, gb_sets:from_list(assigned_tasks(KVpid, Index, Bucket)), KVpid, Bucket, EvM),
 	riakc_pool:unlock(Pool, KVpid).
 
 handle_instance_output(Children, KVpid, Bucket, EvM) ->
@@ -157,9 +157,13 @@ todo_tasks(KVpid, Index, Bucket) ->
 		#{fq => <<"_yz_rb:", BucketName/binary, " AND status_register:todo">>,
 			sort => <<"priority_register asc, cat_register asc">>}).
 
--spec assigned_tasks(pid(), binary()) -> [binary()].
-assigned_tasks(KVpid, Index) ->
-	riaktq_task:list(KVpid, Index, #{fq => <<"status_register:nextup AND assignee:*">>}).
+-spec assigned_tasks(pid(), binary(), bucket_and_type()) -> [binary()].
+assigned_tasks(KVpid, Index, Bucket) ->
+	{_BucketType, BucketName} = Bucket,
+	riaktq_task:list(
+		KVpid,
+		Index,
+		#{fq => <<"_yz_rb:", BucketName/binary, " AND status_register:nextup AND assignee:*">>}).
 
 -spec maybe_report(atom(), atom(), bucket_and_type(), binary(), Result) -> Result when Result :: riaktq_task:transition_result().
 maybe_report(undefined, _Transition, _Bucket, _Id, Result) -> Result;
