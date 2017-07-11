@@ -61,7 +61,7 @@ handle(Group, Pool, Bucket, Index, EvM) ->
 		handle_instance_output(supervisor:which_children(Group), KVpid, Bucket, EvM),
 
 	handle_commit(TasksToCommit),
-	handle_assign(NextUpInstances, todo_tasks(KVpid, Index), KVpid, Bucket, EvM),
+	handle_assign(NextUpInstances, todo_tasks(KVpid, Index, Bucket), KVpid, Bucket, EvM),
 	handle_rollback(TasksOnInstances, gb_sets:from_list(assigned_tasks(KVpid, Index)), KVpid, Bucket, EvM),
 	riakc_pool:unlock(Pool, KVpid).
 
@@ -148,12 +148,13 @@ handle_rollback([Id|T], KVpid, Bucket, EvM) ->
 handle_rollback([], _KVpid, _Bucket, _EvM) ->
 	ok.
 
--spec todo_tasks(pid(), binary()) -> [binary()].
-todo_tasks(KVpid, Index) ->
+-spec todo_tasks(pid(), binary(), bucket_and_type()) -> [binary()].
+todo_tasks(KVpid, Index, Bucket) ->
+	{_BucketType, BucketName} = Bucket,
 	riaktq_task:list(
 		KVpid,
 		Index,
-		#{fq => <<"status_register:todo">>,
+		#{fq => <<"_yz_rb:", BucketName/binary, " AND status_register:todo">>,
 			sort => <<"priority_register asc, cat_register asc">>}).
 
 -spec assigned_tasks(pid(), binary()) -> [binary()].
