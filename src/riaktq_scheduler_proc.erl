@@ -70,17 +70,18 @@ handle_instance_output(Children, KVpid, Bucket, EvM) ->
 
 handle_instance_output([{Name, Pid, _, _}|T], KVpid, Bucket, EvM, NextUpInstances, TasksToCommit, TasksOnInstances) ->
 	AddList = fun(L, Acc) -> lists:foldl(fun gb_sets:add_element/2, Acc, L) end,
+	FilterId = fun(L) -> [Id || #{id := Id} <- L] end,
 	try riaktq_instance:get(Pid) of
 		#{input := In, output := Out, status := <<"idle">>} ->
 			handle_instance_output(T, KVpid, Bucket, EvM,
 				[{Pid, Name}|NextUpInstances],
 				[{Pid, handle_close(Out, KVpid, Bucket, EvM)}|TasksToCommit],
-				AddList(In, AddList(Out, TasksOnInstances)));
+				AddList(FilterId(In), AddList(FilterId(Out), TasksOnInstances)));
 		#{input := In, output := Out} ->
 			handle_instance_output(T, KVpid, Bucket, EvM,
 				NextUpInstances,
 				[{Pid, handle_close(Out, KVpid, Bucket, EvM)}|TasksToCommit],
-				AddList(In, AddList(Out, TasksOnInstances)))
+				AddList(FilterId(In), AddList(FilterId(Out), TasksOnInstances)))
 	catch T:R ->
 		?ERROR_REPORT([{instance, Name}], T, R),
 		handle_instance_output(T, KVpid, Bucket, EvM, NextUpInstances, TasksToCommit, TasksOnInstances)
@@ -163,7 +164,7 @@ assigned_tasks(KVpid, Index, Bucket) ->
 	riaktq_task:list(
 		KVpid,
 		Index,
-		#{fq => <<"_yz_rb:", BucketName/binary, " AND status_register:nextup AND assignee:*">>}).
+		#{fq => <<"_yz_rb:", BucketName/binary, " AND status_register:nextup AND assignee_register:*">>}).
 
 -spec maybe_report(atom(), atom(), bucket_and_type(), binary(), Result) -> Result when Result :: riaktq_task:transition_result().
 maybe_report(undefined, _Transition, _Bucket, _Id, Result) -> Result;

@@ -91,3 +91,18 @@ reopen_when_completed(Config) ->
 	Tobj = riaktq_cth:task_wait(Tid, Config),
 	Tinput = riakc_map:fetch({<<"out">>, register}, Tobj),
 	riaktq_cth:task_remove(Tid, Config).
+
+%% If a task was assigned but lost it will be reassigned.
+assigned_but_lost(Config) ->
+	Tid = riaktq_cth:make_taskname(),
+	Tinput = <<42>>,
+	Assignee = <<"agent">>,
+
+	T0 = riaktq_task:new_dt(Tinput, [], <<"nextup">>, 0),
+	T1 = riakc_map:update({<<"assignee">>, register}, fun(Obj) -> riakc_register:set(Assignee, Obj) end, T0),
+	riaktq_cth:task_open(Tid, T1, Config),
+
+	riaktq_cth:scheduler_wait(Config),
+	Tobj = riaktq_cth:task_wait(Tid, Config),
+	Tinput = riakc_map:fetch({<<"out">>, register}, Tobj),
+	riaktq_cth:task_remove(Tid, Config).

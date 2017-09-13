@@ -85,7 +85,7 @@ SchedulerConf =
     riak_index => Index,
     event_manager => EventManager,
     schedule_interval => timer:seconds(5)},
-supervisor:start_child(whereis(riaktq_sup), riaktq:scheduler_spec(SchedulerConf)),
+supervisor:start_child(whereis(riaktq_sup), riaktq:scheduler_spec({scheduler, Group}, SchedulerConf)),
 
 %% Creating five instances with `riaktq_echo` handler,
 %% and adding them to the supervision tree.
