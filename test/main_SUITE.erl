@@ -98,7 +98,7 @@ assigned_but_lost(Config) ->
 	Tinput = <<42>>,
 	Assignee = <<"agent">>,
 
-	T0 = riaktq_task:new_dt(Tinput, [], <<"nextup">>, 0),
+	T0 = riaktq_task:new_dt(Tinput, [], 0, 0, <<"nextup">>),
 	T1 = riakc_map:update({<<"assignee">>, register}, fun(Obj) -> riakc_register:set(Assignee, Obj) end, T0),
 	riaktq_cth:task_open(Tid, T1, Config),
 

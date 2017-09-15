@@ -18,6 +18,7 @@ Above all, we have **tasks**. They describe the following properties:
 - **tags** (not implemented), features of the instance required for the task execution
 - **priority**, priority of the task
 - **assignee**, instance that have been chosen for the task execution
+- **retry**, number of restart attempts
 - **in**, task's input
 - **out**, output of the task
 - **laf**, duration of the task execution
@@ -35,8 +36,9 @@ When task is complete, it's moved to the output queue. The task remains there un
 #### Scheduler
 
 To execute a task, we simply put it to Riak KV using `riaktq_task:open/{4,5}` functions.
-Once per specified interval (1 minute by default), the scheduler:
-- commit tasks on instances that have already completed changing their status to `done` or `failed`
+Once per specified interval (1 minute by default), the scheduler does:
+- commit completed tasks on instances, changing their status to `done` or `failed`
+- restart tasks with `failed` status and `retry` > 0, lowering their `priority` by 1
 - assign tasks with `todo` status to instances for future execution, changing their status to `nextup`
 - rollback lost tasks to `todo` status (in case of instance failure)
 

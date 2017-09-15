@@ -6,8 +6,10 @@
 		<field name="status_register" type="string" indexed="true" stored="false" multiValued="false" />
 		<!-- tags: [binary()] -->
 		<field name="tags_set" type="string" indexed="true" stored="false" multiValued="true" />
-		<!-- priority: integer(integer()) -->
+		<!-- priority: int() -->
 		<field name="priority_register" type="int32" indexed="true" stored="false" multiValued="false" />
+		<!-- number of restart attempts: int() -->
+		<field name="retry_register" type="int32" indexed="false" stored="false" multiValued="false" />
 		<!-- assignee: binary(guid()) -->
 		<field name="assignee_register" type="string" indexed="true" stored="false" multiValued="false" />
 		<!-- input: binary() -->

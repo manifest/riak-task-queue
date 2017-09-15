@@ -55,8 +55,10 @@
 -export([
 	new_dt/1,
 	new_dt/2,
+	new_dt/3,
 	new_dt/4,
-	new_dt/5
+	new_dt/5,
+	new_dt/6
 ]).
 
 %% Definitions
@@ -207,10 +209,9 @@ rollback(Pid, Bucket, Id, Opts, Handle) ->
 	case find_expected(Pid, Bucket, Id, ?NEXTUP) of
 		{ok, T0} ->
 			T1 = Handle(T0),
-			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(?TODO, Obj) end, T1),
-			T3 = riakc_map:erase({<<"assignee">>, register}, T2),
-			T4 = put(Pid, Bucket, Id, T3, Opts),
-			{ok, T4};
+			T2 = rollback_dt(T1),
+			T3 = put(Pid, Bucket, Id, T2, Opts),
+			{ok, T3};
 		ErrorReason ->
 			ErrorReason
 	end.
@@ -240,10 +241,25 @@ close(Pid, Bucket, Id, Status, Handle) when Status =:= ?DONE; Status =:= ?FAILED
 close(Pid, Bucket, Id, Status, Opts, Handle) when Status =:= ?DONE; Status =:= ?FAILED ->
 	case find_expected(Pid, Bucket, Id, ?NEXTUP) of
 		{ok, T0} ->
-			T1 = Handle(T0),
-			T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(Status, Obj) end, T1),
-			T3 = put(Pid, Bucket, Id, T2, Opts),
-			{ok, T3};
+			Retry =
+				case riakc_map:find({<<"retry">>, register}, T0) of
+					{ok, Val} -> binary_to_integer(Val);
+					_         -> 0
+				end,
+			TT0 =
+				case (Status =:= ?FAILED) andalso (Retry > 0) of
+					true ->
+						T1 = rollback_dt(T0),
+						T2 = decrement_register_dt(<<"retry">>, T1),
+						T3 = decrement_register_dt(<<"priority">>, T2),
+						T3;
+					_ ->
+						T1 = Handle(T0),
+						T2 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(Status, Obj) end, T1),
+						T2
+				end,
+			TT1 = put(Pid, Bucket, Id, TT0, Opts),
+			{ok, TT1};
 		ErrorReason ->
 			ErrorReason
 	end;
@@ -256,29 +272,51 @@ close(_Pid, _Bucket, _Id, Status, _Opts, _Handle) ->
 
 -spec new_dt(binary()) -> task().
 new_dt(Input) ->
-	new_dt(Input, [], ?TODO, 0).
+	new_dt(Input, []).
 
 -spec new_dt(binary(), [binary()]) -> task().
 new_dt(Input, Tags) ->
-	new_dt(Input, Tags, ?TODO, 0).
+	new_dt(Input, Tags, 0).
 
--spec new_dt(binary(), [binary()], binary(), integer()) -> task().
-new_dt(Input, Tags, Status, Priority) ->
-	new_dt(Input, Tags, Status, Priority, riaktq:unix_time_us()).
+-spec new_dt(binary(), [binary()], integer()) -> task().
+new_dt(Input, Tags, Priority) ->
+	new_dt(Input, Tags, Priority, 0).
 
--spec new_dt(binary(), [binary()], binary(), integer(), non_neg_integer()) -> task().
-new_dt(Input, Tags, Status, Priority, CreatedAt) ->
+-spec new_dt(binary(), [binary()], integer(), integer()) -> task().
+new_dt(Input, Tags, Priority, Try) ->
+	new_dt(Input, Tags, Priority, Try, ?TODO).
+
+-spec new_dt(binary(), [binary()], integer(), integer(), binary()) -> task().
+new_dt(Input, Tags, Priority, Try, Status) ->
+	new_dt(Input, Tags, Priority, Try, Status, riaktq:unix_time_us()).
+
+-spec new_dt(binary(), [binary()], integer(), integer(), binary(), non_neg_integer()) -> task().
+new_dt(Input, Tags, Priority, Retry, Status, CreatedAt) ->
 	T0 = riakc_map:new(),
 	T1 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(Status, Obj) end, T0),
 	T2 = riakc_map:update({<<"priority">>, register}, fun(Obj) -> riakc_register:set(integer_to_binary(Priority), Obj) end, T1),
-	T3 = riakc_map:update({<<"tags">>, set}, fun(Obj) -> riakc_set:add_elements(Tags, Obj) end, T2),
-	T4 = riakc_map:update({<<"cat">>, register}, fun(Obj) -> riakc_register:set(integer_to_binary(CreatedAt), Obj) end, T3),
-	T5 = riakc_map:update({<<"in">>, register}, fun(Obj) -> riakc_register:set(Input, Obj) end, T4),
-	T5.
+	T3 = riakc_map:update({<<"retry">>, register}, fun(Obj) -> riakc_register:set(integer_to_binary(Retry), Obj) end, T2),
+	T4 = riakc_map:update({<<"tags">>, set}, fun(Obj) -> riakc_set:add_elements(Tags, Obj) end, T3),
+	T5 = riakc_map:update({<<"cat">>, register}, fun(Obj) -> riakc_register:set(integer_to_binary(CreatedAt), Obj) end, T4),
+	T6 = riakc_map:update({<<"in">>, register}, fun(Obj) -> riakc_register:set(Input, Obj) end, T5),
+	T6.
 
 %% =============================================================================
 %% Internal functions
 %% =============================================================================
+
+-spec rollback_dt(task()) -> task().
+rollback_dt(T0) ->
+	T1 = riakc_map:update({<<"status">>, register}, fun(Obj) -> riakc_register:set(?TODO, Obj) end, T0),
+	T2 = riakc_map:erase({<<"assignee">>, register}, T1),
+	T2.
+
+-spec decrement_register_dt(binary(), task()) -> task().
+decrement_register_dt(Name, T) ->
+	case riakc_map:find({Name, register}, T) of
+		{ok, Val} -> riakc_map:update({Name, register}, fun(Obj) -> riakc_register:set(integer_to_binary(binary_to_integer(Val) -1), Obj) end, T);
+		_         -> T
+	end.
 
 -spec put(pid(), bucket_and_type(), binary(), task(), [proplists:property()]) -> task().
 put(Pid, Bucket, Id, T, Opts) ->
