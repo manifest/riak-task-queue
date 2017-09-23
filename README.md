@@ -72,9 +72,9 @@ RiakPoolConf =
 supervisor:start_child(whereis(riaktq_sup), riakc_pool:child_spec(RiakPoolConf)),
 
 %% We could register an event manager to receive state transitions of tasks.
-EventManager = riaktq_eventm,
-supervisor:start_child(whereis(riaktq_sup), riaktq:eventm_task_spec(EventManager)),
-riaktq_eventm_task:subscribe(EventManager),
+TaskEventManager = riaktq_eventm_task,
+supervisor:start_child(whereis(riaktq_sup), riaktq:eventm_task_spec(TaskEventManager)),
+riaktq_eventm_task:subscribe(TaskEventManager),
 
 %% Creating a scheduler and adding it to the supervision tree.
 Bucket = {<<"riaktq_task_t">>, <<"task">>},
@@ -85,7 +85,7 @@ SchedulerConf =
     riak_connection_pool => kv_protobuf,
     riak_bucket => Bucket,
     riak_index => Index,
-    event_manager => EventManager,
+    event_manager => TaskEventManager,
     schedule_interval => timer:seconds(5)},
 supervisor:start_child(whereis(riaktq_sup), riaktq:scheduler_spec({scheduler, Group}, SchedulerConf)),
 
@@ -114,28 +114,53 @@ flush().
 %%               <<"task-42">>,
 %%               {map,
 %%                   [{{<<"assignee">>,register},<<"echo-1">>},
-%%                    {{<<"cat">>,register},<<"1493560145766433">>},
+%%                    {{<<"cat">>,register},<<"1506163346614292">>},
 %%                    {{<<"in">>,register},<<"echo">>},
 %%                    {{<<"priority">>,register},<<"0">>},
+%%                    {{<<"retry">>,register},<<"0">>},
 %%                    {{<<"status">>,register},<<"nextup">>}],
 %%                   [],[],
-%%                   <<131,108,0,0,0,1,104,2,109,0,0,0,12,35,9,254,249,106,61,
-%%                     242,44,0,0,0,1,97,2,106>>}}
+%%                   <<131,108,0,0,0,1,104,2,109,0,0,0,12,35,9,254,249,6,117,
+%%                     153,72,0,0,0,1,97,2,106>>}}
 %% Shell got {riaktq_task_transition_data,close,
 %%               {<<"riaktq_task_t">>,<<"task">>},
 %%               <<"task-42">>,
 %%               {map,
 %%                   [{{<<"assignee">>,register},<<"echo-1">>},
-%%                    {{<<"cat">>,register},<<"1493560145766433">>},
+%%                    {{<<"cat">>,register},<<"1506163346614292">>},
 %%                    {{<<"in">>,register},<<"echo">>},
-%%                    {{<<"laf">>,register},<<"14">>},
+%%                    {{<<"laf">>,register},<<"16">>},
 %%                    {{<<"out">>,register},<<"echo">>},
 %%                    {{<<"priority">>,register},<<"0">>},
-%%                    {{<<"sat">>,register},<<"1493560150831346">>},
+%%                    {{<<"retry">>,register},<<"0">>},
+%%                    {{<<"sat">>,register},<<"1506163352875478">>},
 %%                    {{<<"status">>,register},<<"done">>}],
 %%                   [],[],
-%%                   <<131,108,0,0,0,1,104,2,109,0,0,0,12,35,9,254,249,106,61,
-%%                     242,44,0,0,0,1,97,3,106>>}}
+%%                   <<131,108,0,0,0,1,104,2,109,0,0,0,12,35,9,254,249,6,117,
+%%                     153,72,0,0,0,1,97,3,106>>}}
+
+%% We could register an event manager to receive daily reports at specified time.
+QueryEventManager = riaktq_eventm_query,
+supervisor:start_child(whereis(riaktq_sup), riaktq:eventm_query_spec(QueryEventManager)),
+riaktq_eventm_task:subscribe(QueryEventManager),
+
+ObserveTime = {0,0,0}, %% 00:00:00
+ObserveQuery =
+  [ #{id => <<"tasks-that-done">>, status => <<"done">>},
+    #{id => <<"tasks-that-created-at-least-1second-before">>, age => 1} ],
+ObserverConf =
+  #{riak_connection_pool => kv_protobuf,
+    riak_index => Index,
+    event_manager => QueryEventManager,
+    observe_query => ObserveQuery,
+    observe_time => ObserveTime,
+    observe_interval => timer:seconds(5)},
+supervisor:start_child(whereis(riaktq_sup), riaktq:observer_spec(observer, ObserverConf)).
+
+flush().
+%% Shell got {riaktq_query_result,<<"tasks-that-done">>,[<<"task-42">>]}
+%% Shell got {riaktq_query_result,<<"tasks-that-created-at-least-1second-before">>,
+%%                                [<<"task-42">>]}
 ```
 
 

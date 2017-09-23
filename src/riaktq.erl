@@ -28,7 +28,11 @@
 -export([
 	scheduler_spec/2,
 	instance_spec/2,
+	observer_spec/2,
 	eventm_task_spec/1,
+	eventm_query_spec/1,
+	unix_time/0,
+	unix_time/1,
 	unix_time_us/0,
 	unix_time_us/1
 ]).
@@ -46,17 +50,37 @@ scheduler_spec(Ref, Conf) ->
     start => {riaktq_scheduler, start_link, [Conf]},
     restart => permanent}.
 
+-spec instance_spec(binary(), map()) -> supervisor:child_spec().
+instance_spec(Ref, Conf) ->
+  #{id => Ref,
+    start => {riaktq_instance, start_link, [Conf]},
+    restart => permanent}.
+
+-spec observer_spec(any(), map()) -> supervisor:child_spec().
+observer_spec(Ref, Conf) ->
+  #{id => Ref,
+    start => {riaktq_observer, start_link, [Conf]},
+    restart => permanent}.
+
 -spec eventm_task_spec(atom()) -> supervisor:child_spec().
 eventm_task_spec(Ref) ->
   #{id => Ref,
     start => {riaktq_eventm_task, start_link, [Ref]},
     restart => permanent}.
 
--spec instance_spec(binary(), map()) -> supervisor:child_spec().
-instance_spec(Ref, Conf) ->
+-spec eventm_query_spec(atom()) -> supervisor:child_spec().
+eventm_query_spec(Ref) ->
   #{id => Ref,
-    start => {riaktq_instance, start_link, [Conf]},
+    start => {riaktq_eventm_query, start_link, [Ref]},
     restart => permanent}.
+
+-spec unix_time() -> non_neg_integer().
+unix_time() ->
+	unix_time(erlang:timestamp()).
+
+-spec unix_time(erlang:timestamp()) -> non_neg_integer().
+unix_time({MS, S, _US}) ->
+	MS * 1000000 + S.
 
 -spec unix_time_us() -> non_neg_integer().
 unix_time_us() ->
