@@ -123,7 +123,7 @@ init_riaktq_application(KVpool, Bucket, Index, Interval, Host, Port) ->
 			riak_connection_pool => KVpool,
 			riak_bucket => Bucket,
 			riak_index => Index,
-			schedule_interval => Interval},
+			interval => Interval},
 	supervisor:start_child(whereis(riaktq_sup), riaktq:scheduler_spec({Group, scheduler}, SchedulerConf)),
 
 	%% Creating five instances with `riaktq_echo` handler,

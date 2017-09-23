@@ -86,7 +86,7 @@ SchedulerConf =
     riak_bucket => Bucket,
     riak_index => Index,
     event_manager => TaskEventManager,
-    schedule_interval => timer:seconds(5)},
+    interval => timer:seconds(5)},
 supervisor:start_child(whereis(riaktq_sup), riaktq:scheduler_spec({scheduler, Group}, SchedulerConf)),
 
 %% Creating five instances with `riaktq_echo` handler,
@@ -152,9 +152,9 @@ ObserverConf =
   #{riak_connection_pool => kv_protobuf,
     riak_index => Index,
     event_manager => QueryEventManager,
-    observe_query => ObserveQuery,
-    observe_time => ObserveTime,
-    observe_interval => timer:seconds(5)},
+    query => ObserveQuery,
+    time => ObserveTime,
+    interval => timer:seconds(5)},
 supervisor:start_child(whereis(riaktq_sup), riaktq:observer_spec(observer, ObserverConf)).
 
 flush().

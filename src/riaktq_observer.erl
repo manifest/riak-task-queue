@@ -53,14 +53,14 @@
 }).
 
 -type proc() :: #proc{}.
--type observe_query() :: #{id => any(), age := non_neg_integer(), status := binary()}.
+-type query() :: #{id => any(), age := non_neg_integer(), status := binary()}.
 
 -record(state, {
 	hproc  :: proc() | undefined,
 	pool   :: riakc_pool:name(),
 	index  :: binary(),
 	eventm :: atom() | undefined,
-	query  :: [observe_query()],
+	query  :: [query()],
 	time   :: calendar:time(),
 	ldate  :: calendar:date() | undefined,
 	tint   :: non_neg_integer(),
@@ -86,9 +86,9 @@ init(Conf) ->
 			pool = validate_riakc_pool(Conf),
 			index = validate_riak_index(Conf),
 			eventm = validate_event_manager(Conf, undefined),
-			query = validate_observe_query(Conf, []),
-			time = validate_observe_time(Conf, ?DEFAULT_OBSERVE_TIME),
-			tint = validate_observe_interval(Conf, ?DEFAULT_OBSERVE_INTERVAL),
+			query = validate_query(Conf, []),
+			time = validate_time(Conf, ?DEFAULT_OBSERVE_TIME),
+			tint = validate_interval(Conf, ?DEFAULT_OBSERVE_INTERVAL),
 			tref = erlang:start_timer(0, self(), try_observe_tasks)},
 
 	{ok, idle, Sdata}.
@@ -154,8 +154,8 @@ validate_riakc_pool(#{riak_connection_pool := Val}) when is_atom(Val) -> Val;
 validate_riakc_pool(#{riak_connection_pool := Val})                   -> error({invalid_riak_connection_pool, Val});
 validate_riakc_pool(_)                                                -> error(missing_riak_connection_pool).
 
--spec validate_observe_query(map(), [observe_query()]) -> [observe_query()].
-validate_observe_query(#{observe_query := Val}, _) ->
+-spec validate_query(map(), [query()]) -> [query()].
+validate_query(#{query := Val}, _) ->
 	_ =
 		try
 			lists:foreach(
@@ -164,19 +164,19 @@ validate_observe_query(#{observe_query := Val}, _) ->
 					_ = case maps:find(age, Q) of {ok, Age} when is_integer(Age), Age >= 0 -> ok; error -> ok end,
 					_ = case maps:find(status, Q) of {ok, Status} when is_binary(Status) -> ok; error -> ok end
 				end, Val)
-		catch _:_ -> error({invalid_observe_query, Val}) end,
+		catch _:_ -> error({invalid_query, Val}) end,
 	Val;
-validate_observe_query(_, Default) -> Default.
+validate_query(_, Default) -> Default.
 
--spec validate_observe_time(map(), Time) -> Time when Time :: {0..23, 0..59, 0..59}.
-validate_observe_time(#{observe_time := {H, M, S} = Val}, _) when is_integer(H), H >= 0, H =< 23, is_integer(M), M >= 0, M =< 59, is_integer(S), M >= 0, M =< 59 -> Val;
-validate_observe_time(#{observe_time := Val}, _)                                                                                                                 -> error({invalid_observe_time, Val});
-validate_observe_time(_, Default)                                                                                                                                -> Default.
+-spec validate_time(map(), Time) -> Time when Time :: {0..23, 0..59, 0..59}.
+validate_time(#{time := {H, M, S} = Val}, _) when is_integer(H), H >= 0, H =< 23, is_integer(M), M >= 0, M =< 59, is_integer(S), M >= 0, M =< 59 -> Val;
+validate_time(#{time := Val}, _)                                                                                                                 -> error({invalid_time, Val});
+validate_time(_, Default)                                                                                                                                -> Default.
 
--spec validate_observe_interval(map(), non_neg_integer()) -> non_neg_integer().
-validate_observe_interval(#{observe_interval := Val}, _) when is_integer(Val), Val > 0 -> Val;
-validate_observe_interval(#{observe_interval := Val}, _)                               -> error({invalid_observe_interval, Val});
-validate_observe_interval(_, Default)                                                   -> Default.
+-spec validate_interval(map(), non_neg_integer()) -> non_neg_integer().
+validate_interval(#{interval := Val}, _) when is_integer(Val), Val > 0 -> Val;
+validate_interval(#{interval := Val}, _)                               -> error({invalid_interval, Val});
+validate_interval(_, Default)                                                   -> Default.
 
 -spec validate_event_manager(map(), atom()) -> atom().
 validate_event_manager(#{event_manager := Val}, _) when is_atom(Val) -> Val;

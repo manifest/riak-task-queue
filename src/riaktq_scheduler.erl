@@ -85,7 +85,7 @@ init(Conf) ->
 			bucket = validate_riak_bucket(Conf),
 			index = validate_riak_index(Conf),
 			eventm = validate_event_manager(Conf, undefined),
-			tint = validate_schedule_interval(Conf, ?DEFAULT_SCHEDULE_INTERVAL),
+			tint = validate_interval(Conf, ?DEFAULT_SCHEDULE_INTERVAL),
 			tref = erlang:start_timer(0, self(), try_schedule_tasks)},
 
 	{ok, idle, Sdata}.
@@ -143,10 +143,10 @@ validate_event_manager(#{event_manager := Val}, _) when is_atom(Val) -> Val;
 validate_event_manager(#{event_manager := Val}, _)                   -> error({invalid_event_manager, Val});
 validate_event_manager(_, Default)                                   -> Default.
 
--spec validate_schedule_interval(map(), non_neg_integer()) -> non_neg_integer().
-validate_schedule_interval(#{schedule_interval := Val}, _) when is_integer(Val), Val > 0 -> Val;
-validate_schedule_interval(#{schedule_interval := Val}, _)                               -> error({invalid_schedule_interval, Val});
-validate_schedule_interval(_, Default)                                                   -> Default.
+-spec validate_interval(map(), non_neg_integer()) -> non_neg_integer().
+validate_interval(#{interval := Val}, _) when is_integer(Val), Val > 0 -> Val;
+validate_interval(#{interval := Val}, _)                               -> error({invalid_interval, Val});
+validate_interval(_, Default)                                                   -> Default.
 
 -spec validate_riak_bucket(map()) -> bucket_and_type().
 validate_riak_bucket(#{riak_bucket := {Type,Name}=Val}) when is_binary(Type), is_binary(Name) -> Val;
