@@ -156,7 +156,7 @@ todo_tasks(KVpid, Index, Bucket) ->
 		KVpid,
 		Index,
 		#{fq => <<"_yz_rb:", BucketName/binary, " AND status_register:todo">>,
-			sort => <<"priority_register asc, cat_register asc">>}).
+			sort => <<"priority_register asc, cat_register desc">>}).
 
 -spec assigned_tasks(pid(), binary(), bucket_and_type()) -> [binary()].
 assigned_tasks(KVpid, Index, Bucket) ->
