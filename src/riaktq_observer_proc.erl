@@ -79,7 +79,7 @@ execute_query(KVpid, Index, Query) ->
 -spec maybe_report(atom(), riaktq_observer:query(), Result) -> Result when Result :: [binary()].
 maybe_report(undefined, _Query, Result)     -> Result;
 maybe_report(_EvM, _Query, [] =Result)      -> Result;
-maybe_report(EvM, #{id := QueryId}, Result) ->
-	try riaktq_eventm_query:report_query_result(EvM, QueryId, Result)
+maybe_report(EvM, #{key := Qkey}, Result) ->
+	try riaktq_eventm_query:report_query_result(EvM, Qkey, Result)
 	catch T:R -> ?ERROR_REPORT([{event_manager, EvM}], T, R) end,
 	Result.

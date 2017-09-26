@@ -145,14 +145,14 @@ supervisor:start_child(whereis(riaktq_sup), riaktq:eventm_query_spec(QueryEventM
 riaktq_eventm_task:subscribe(QueryEventManager),
 
 ObserveTime = {0,0,0}, %% 00:00:00
-ObserveQuery =
-  [ #{id => <<"tasks-that-done">>, status => <<"done">>},
-    #{id => <<"tasks-that-created-at-least-1second-before">>, age => 1} ],
+ObserveQueries =
+  [ #{key => <<"tasks-that-done">>, status => <<"done">>},
+    #{key => <<"tasks-that-created-at-least-1second-before">>, age => 1} ],
 ObserverConf =
   #{riak_connection_pool => kv_protobuf,
     riak_index => Index,
     event_manager => QueryEventManager,
-    query => ObserveQuery,
+    queries => ObserveQueries,
     time => ObserveTime,
     interval => timer:seconds(5)},
 supervisor:start_child(whereis(riaktq_sup), riaktq:observer_spec(observer, ObserverConf)).

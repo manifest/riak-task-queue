@@ -56,16 +56,18 @@
 -type query() :: #{id => any(), age := non_neg_integer(), status := binary()}.
 
 -record(state, {
-	hproc  :: proc() | undefined,
-	pool   :: riakc_pool:name(),
-	index  :: binary(),
-	eventm :: atom() | undefined,
-	query  :: [query()],
-	time   :: calendar:time(),
-	ldate  :: calendar:date() | undefined,
-	tint   :: non_neg_integer(),
-	tref   :: reference()
+	hproc   :: proc() | undefined,
+	pool    :: riakc_pool:name(),
+	index   :: binary(),
+	eventm  :: atom() | undefined,
+	queries :: [query()],
+	time    :: calendar:time(),
+	ldate   :: calendar:date() | undefined,
+	tint    :: non_neg_integer(),
+	tref    :: reference()
 }).
+
+-export_type([query/0]).
 
 %% =============================================================================
 %% API
@@ -86,7 +88,7 @@ init(Conf) ->
 			pool = validate_riakc_pool(Conf),
 			index = validate_riak_index(Conf),
 			eventm = validate_event_manager(Conf, undefined),
-			query = validate_query(Conf, []),
+			queries = validate_queries(Conf, []),
 			time = validate_time(Conf, ?DEFAULT_OBSERVE_TIME),
 			tint = validate_interval(Conf, ?DEFAULT_OBSERVE_INTERVAL),
 			tref = erlang:start_timer(0, self(), try_observe_tasks)},
@@ -94,7 +96,7 @@ init(Conf) ->
 	{ok, idle, Sdata}.
 
 %% We aren't observing tasks at the moment (hproc=undefined): start do it and switch to the 'busy' state.
-handle_event(internal, try_observe_tasks, _Sname, #state{hproc=undefined, ldate=Ldate, time=Time, query=Q, pool=P, index=I, eventm=EvM} =Sdata) ->
+handle_event(internal, try_observe_tasks, _Sname, #state{hproc=undefined, ldate=Ldate, time=Time, queries=Qs, pool=P, index=I, eventm=EvM} =Sdata) ->
 	{DateNow, TimeNow} = calendar:universal_time(),
 	DoNothing = fun() -> {next_state, idle, Sdata} end,
 	MaybeObserve =
@@ -102,7 +104,7 @@ handle_event(internal, try_observe_tasks, _Sname, #state{hproc=undefined, ldate=
 			case calendar:time_to_seconds(TimeNow) > calendar:time_to_seconds(Time) of
 				true ->
 					%% Lets observe
-					{Hpid, Href} = riaktq_observer_proc:run(P, I, Q, EvM),
+					{Hpid, Href} = riaktq_observer_proc:run(P, I, Qs, EvM),
 					{next_state, busy, Sdata#state{hproc=#proc{pid=Hpid, ref=Href}, ldate=DateNow}};
 				_ ->
 					%% It's not a right time
@@ -154,19 +156,19 @@ validate_riakc_pool(#{riak_connection_pool := Val}) when is_atom(Val) -> Val;
 validate_riakc_pool(#{riak_connection_pool := Val})                   -> error({invalid_riak_connection_pool, Val});
 validate_riakc_pool(_)                                                -> error(missing_riak_connection_pool).
 
--spec validate_query(map(), [query()]) -> [query()].
-validate_query(#{query := Val}, _) ->
+-spec validate_queries(map(), [query()]) -> [query()].
+validate_queries(#{queries := Val}, _) ->
 	_ =
 		try
 			lists:foreach(
 				fun(Q) ->
-					_ = maps:get(id, Q),
+					_ = maps:get(key, Q),
 					_ = case maps:find(age, Q) of {ok, Age} when is_integer(Age), Age >= 0 -> ok; error -> ok end,
 					_ = case maps:find(status, Q) of {ok, Status} when is_binary(Status) -> ok; error -> ok end
 				end, Val)
 		catch _:_ -> error({invalid_query, Val}) end,
 	Val;
-validate_query(_, Default) -> Default.
+validate_queries(_, Default) -> Default.
 
 -spec validate_time(map(), Time) -> Time when Time :: {0..23, 0..59, 0..59}.
 validate_time(#{time := {H, M, S} = Val}, _) when is_integer(H), H >= 0, H =< 23, is_integer(M), M >= 0, M =< 59, is_integer(S), M >= 0, M =< 59 -> Val;

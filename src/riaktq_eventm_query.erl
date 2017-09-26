@@ -29,7 +29,7 @@
 	listener :: pid()
 }).
 
--type query_event() :: {riaktq_query_result, QueryId :: any(), Result :: [binary()]}.
+-type query_event() :: {riaktq_query_result, Qkey :: any(), Result :: [binary()]}.
 -type event() :: query_event().
 
 -export_type([event/0]).
@@ -43,8 +43,8 @@ start_link(Ref) ->
 	gen_event:start_link({local, Ref}).
 
 -spec report_query_result(atom(), any(), [binary()]) -> ok.
-report_query_result(Ref, QueryId, Result) ->
-	gen_event:notify(Ref, {riaktq_query_result, QueryId, Result}).
+report_query_result(Ref, Qkey, Result) ->
+	gen_event:notify(Ref, {riaktq_query_result, Qkey, Result}).
 
 -spec subscribe(atom()) -> gen_event:add_handler_ret().
 subscribe(Ref) ->
