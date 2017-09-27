@@ -53,7 +53,7 @@
 }).
 
 -type proc() :: #proc{}.
--type query() :: #{id => any(), age := non_neg_integer(), status := binary()}.
+-type query() :: #{key => any(), age := non_neg_integer(), status := binary()}.
 
 -record(state, {
 	hproc   :: proc() | undefined,

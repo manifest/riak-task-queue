@@ -40,7 +40,7 @@
 %% API
 %% =============================================================================
 
--spec run(riakc_pool:name(), binary(), riaktq_observer:query(), atom()) -> {pid(), reference()}.
+-spec run(riakc_pool:name(), binary(), [riaktq_observer:query()], atom()) -> {pid(), reference()}.
 run(Pool, Index, Queries, EvM) ->
 	spawn_monitor(?MODULE, loop, [self(), Pool, Index, Queries, EvM]).
 
@@ -48,12 +48,12 @@ run(Pool, Index, Queries, EvM) ->
 %% Internal functions
 %% =============================================================================
 
--spec loop(pid(), riakc_pool:name(), binary(), riaktq_observer:query(), atom()) -> no_return().
+-spec loop(pid(), riakc_pool:name(), binary(), [riaktq_observer:query()], atom()) -> no_return().
 loop(Parent, Pool, Index, Queries, EvM) ->
 	_ = handle(Pool, Index, Queries, EvM),
 	Parent ! riaktq_observe_done.
 
--spec handle(riakc_pool:name(), binary(), riaktq_observer:query(), atom()) -> any().
+-spec handle(riakc_pool:name(), binary(), [riaktq_observer:query()], atom()) -> any().
 handle(Pool, Index, Queries, EvM) ->
 	KVpid = riakc_pool:lock(Pool),
 	lists:foreach(
