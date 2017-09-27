@@ -30,6 +30,8 @@
 -export([
 	list/2,
 	list/3,
+	fold/4,
+	fold/5,
 	get/3,
 	get/4,
 	get/5,
@@ -119,6 +121,19 @@ list(Pid, Index) ->
 
 -spec list(pid(), binary(), map()) -> [binary()].
 list(Pid, Index, Opts) ->
+	fold(
+		Pid, Index, [],
+		fun({_, Doc}, Acc) ->
+			{_, Id} = lists:keyfind(<<"_yz_rk">>, 1, Doc),
+			[Id|Acc]
+		end, Opts).
+
+-spec fold(pid(), binary(), any(), fun(({binary(), list()}, any()) -> any())) -> any().
+fold(Pid, Index, AccIn, Handle) ->
+	fold(Pid, Index, AccIn, Handle, #{}).
+
+-spec fold(pid(), binary(), any(), fun(({binary(), list()}, any()) -> any()), map()) -> any().
+fold(Pid, Index, AccIn, Handle, Opts) ->
 	Start = maps:get(start, Opts, 0),
 	Rows = maps:get(rows, Opts, ?DEFAULT_REQUEST_ROWS),
 	Query = maps:get(q, Opts, <<"*:*">>),
@@ -132,15 +147,11 @@ list(Pid, Index, Opts) ->
 			[{filter, maps:find(fq, Opts)}, {sort, maps:find(sort, Opts)}]),
 
 	case catch riakc_pb_socket:search(Pid, Index, Query, Qopts, ?DEFAULT_REQUEST_TIMEOUT) of
-		{ok, {_, Docs, _, _}} ->
-			[begin
-				{_, Id} = lists:keyfind(<<"_yz_rk">>, 1, Doc),
-				Id
-			end || {_, Doc} <- Docs];
-		{ok, _}          -> [];
-		{error, Reason}  -> exit(Reason);
-		{'EXIT', Reason} -> exit(Reason);
-		Else             -> exit({bad_return_value, Else})
+		{ok, {_, Docs, _, _}} -> lists:foldl(Handle, AccIn, Docs);
+		{ok, _}               -> AccIn;
+		{error, Reason}       -> exit(Reason);
+		{'EXIT', Reason}      -> exit(Reason);
+		Else                  -> exit({bad_return_value, Else})
 	end.
 
 -spec get(pid(), bucket_and_type(), binary()) -> task().
