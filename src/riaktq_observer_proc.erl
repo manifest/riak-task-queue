@@ -24,6 +24,7 @@
 
 -module(riaktq_observer_proc).
 
+-include_lib("riakc/include/riakc.hrl").
 -include("riaktq_log.hrl").
 
 %% API
@@ -65,18 +66,24 @@ handle(Pool, Index, Queries, EvM) ->
 		end, Queries),
 	riakc_pool:unlock(Pool, KVpid).
 
--spec execute_query(pid(), binary(), riaktq_observer:query()) -> [binary()].
+-spec execute_query(pid(), binary(), riaktq_observer:query()) -> [{bucket_and_type(), binary()}].
 execute_query(KVpid, Index, Query) ->
 	Status = maps:get(status, Query, <<$*>>),
 	AgeUs = maps:get(age, Query, 0) *1000000,
 	NowUs = riaktq:unix_time_us(),
 	ToUs = integer_to_binary(NowUs -AgeUs),
-	riaktq_task:list(
-		KVpid,
-		Index,
+	riaktq_task:fold(
+		KVpid, Index, [],
+		fun({_, Doc}, Acc) ->
+			{_, Key} = lists:keyfind(<<"_yz_rk">>, 1, Doc),
+			{_, Bt} = lists:keyfind(<<"_yz_rt">>, 1, Doc),
+			{_, Bn} = lists:keyfind(<<"_yz_rb">>, 1, Doc),
+			Bucket = {Bt, Bn},
+			[{Bucket, Key}|Acc]
+		end,
 		#{fq => <<"cat_register:[* TO ", ToUs/binary, "] AND status_register:", Status/binary>>}).
 
--spec maybe_report(atom(), riaktq_observer:query(), Result) -> Result when Result :: [binary()].
+-spec maybe_report(atom(), riaktq_observer:query(), Result) -> Result when Result :: [{bucket_and_type(), binary()}].
 maybe_report(undefined, _Query, Result)     -> Result;
 maybe_report(_EvM, _Query, [] =Result)      -> Result;
 maybe_report(EvM, #{key := Qkey}, Result) ->
