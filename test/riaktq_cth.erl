@@ -116,6 +116,9 @@ init_riaktq_application(KVpool, Bucket, Index, Interval, Host, Port) ->
 					options => [queue_if_disconnected]}},
 	supervisor:start_child(whereis(riaktq_sup), riakc_pool:child_spec(RiakPoolConf)),
 
+	%% Set scheduler's node name (we use same node for the sheduler and instances)
+	SchedulerNode = node(),
+
 	%% Creating a scheduler and adding it to the supervision tree.
 	Group = riaktq_instance_sup,
 	SchedulerConf =
@@ -128,13 +131,16 @@ init_riaktq_application(KVpool, Bucket, Index, Interval, Host, Port) ->
 
 	%% Creating five instances with `riaktq_echo` handler,
 	%% and adding them to the supervision tree.
-	InstanceConf =
-		#{module => riaktq_echo,
-			options => #{}},
-	[ supervisor:start_child(
-			whereis(Group),
-			riaktq:instance_spec(<<"echo-", (integer_to_binary(N))/binary>>, InstanceConf))
-		|| N <- lists:seq(1, 5) ],
+	[begin
+		Name = <<"echo-", (integer_to_binary(N))/binary>>,
+		InstanceConf =
+			#{group => Group, 
+				name => Name,
+				module => riaktq_echo,
+				options => #{},
+				transport_options => #{scheduler_node => SchedulerNode}},
+		supervisor:start_child(whereis(Group), riaktq:instance_spec(Name, InstanceConf))
+	end || N <- lists:seq(1, 5)],
 
 	ok.
 

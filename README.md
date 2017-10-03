@@ -76,6 +76,10 @@ TaskEventManager = riaktq_eventm_task,
 supervisor:start_child(whereis(riaktq_sup), riaktq:eventm_task_spec(TaskEventManager)),
 riaktq_eventm_task:subscribe(TaskEventManager),
 
+%% Set scheduler's node name
+SchedulerNode = 'tq-scheduler@127.0.0.1',
+{ok, _} = net_kernel:start([SchedulerNode]),
+
 %% Creating a scheduler and adding it to the supervision tree.
 Bucket = {<<"riaktq_task_t">>, <<"task">>},
 Index = <<"riaktq_task_idx">>,
@@ -91,13 +95,16 @@ supervisor:start_child(whereis(riaktq_sup), riaktq:scheduler_spec({scheduler, Gr
 
 %% Creating five instances with `riaktq_echo` handler,
 %% and adding them to the supervision tree.
-InstanceConf =
-  #{module => riaktq_echo,
-    options => #{}},
-[ supervisor:start_child(
-    whereis(Group),
-    riaktq:instance_spec(<<"echo-", (integer_to_binary(N))/binary>>, InstanceConf))
-  || N <- lists:seq(1, 5) ],
+[begin
+  Name = <<"echo-", (integer_to_binary(N))/binary>>,
+  InstanceConf =
+    #{group => Group,
+			name => Name,
+      module => riaktq_echo,
+      options => #{},
+      transport_options => #{scheduler_node => SchedulerNode}},
+  supervisor:start_child(whereis(Group), riaktq:instance_spec(Name, InstanceConf))
+end || N <- lists:seq(1, 5)],
 
 %% Opening a new task
 Pid = riakc_pool:lock(kv_protobuf),

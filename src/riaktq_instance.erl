@@ -30,6 +30,7 @@
 %% API
 -export([
 	start_link/1,
+	list/1,
 	get/1,
 	put/2,
 	commit/2
@@ -67,6 +68,7 @@
 
 -record(state, {
 	hproc  :: proc() | undefined,
+	name   :: binary(),
 	hmod   :: module(),
 	hstate :: any(),
 	in     :: queue:queue(input()),
@@ -80,6 +82,16 @@
 -spec start_link(map()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(Conf) ->
 	gen_statem:start_link(?MODULE, Conf, []).
+
+-spec list(atom()) -> [pid()].
+list(Group) ->
+	try
+		pg2:create(Group),
+		pg2:get_members(Group)
+	catch T:R ->
+		?ERROR_REPORT([{group, Group}], T, R),
+		[]
+	end.
 
 -spec get(pid()) -> map().
 get(Pid) ->
@@ -98,11 +110,15 @@ commit(Pid, Ids) ->
 %% =============================================================================
 
 init(Conf) ->
+	Name = validate_name(Conf),
 	Hmod = validate_module(Conf),
 	Hopts = validate_options(Conf, #{}),
+	connect(validate_group(Conf), validate_transport_options(Conf)),
+
 	{ok, Hstate} = Hmod:init(Hopts),
 	Sdata =
 		#state{
+			name = Name,
 			hmod = Hmod,
 			hstate = Hstate,
 			in = queue:new(),
@@ -111,8 +127,8 @@ init(Conf) ->
 	{ok, idle, Sdata}.
 
 %% Somebody would like to get results and status of the instance: reply to them.
-handle_event({call, From}, {get}, Sname, #state{in=Qin, out=Qout}) ->
-	{keep_state_and_data, [{reply, From, handle_get(Sname, Qin, Qout)}]};
+handle_event({call, From}, {get}, Sname, #state{in=Qin, out=Qout, name=Name}) ->
+	{keep_state_and_data, [{reply, From, handle_get(Sname, Qin, Qout, Name)}]};
 %% We have just got a few task: we will try to execute them soon.
 handle_event(cast, {put, Input}, _Sname, #state{in=Qin} =Sdata) ->
 	{keep_state, Sdata#state{in=handle_put(Input, Qin)}, [{next_event, internal, try_run_task}]};
@@ -157,6 +173,16 @@ code_change(_VSN, State, Data, _Extra) ->
 %% Internal functions
 %% =============================================================================
 
+-spec connect(atom(), map()) -> ok.
+connect(Group, #{scheduler_node := Node}) ->
+	Pid = self(),
+	true = net_kernel:connect_node(Node),
+	pg2:create(Group),
+	case lists:member(Pid, pg2:get_members(Group)) of
+		true -> ok;
+		_    -> ok = pg2:join(Group, self())
+	end.
+
 -spec handle_put([input()], Qin) -> Qin when Qin :: queue:queue(input()).
 handle_put([Input|T], Qin) ->
 	try 
@@ -189,11 +215,12 @@ handle_result(Hstart, Status, Data, Qin0, Qout0) ->
 			laf => Hlasted},
 	{Qin1, queue:in(Val, Qout0)}.
 
--spec handle_get(any(), queue:queue(input()), queue:queue(output())) -> map().
-handle_get(Status, Qin, Qout) ->
+-spec handle_get(any(), queue:queue(input()), queue:queue(output()), binary()) -> map().
+handle_get(Status, Qin, Qout, Name) ->
 	#{status => atom_to_binary(Status, utf8),
 		output => queue:to_list(Qout),
-		input => queue:to_list(Qin)}.
+		input => queue:to_list(Qin),
+		name => Name}.
 
 -spec validate_module(map()) -> module().
 validate_module(#{module := Val}) when is_atom(Val) -> Val;
@@ -204,3 +231,25 @@ validate_module(_)                                  -> error(missing_module).
 validate_options(#{options := Val}, _) when is_map(Val) -> Val;
 validate_options(#{options := Val}, _)                  -> error({invalid_options, Val});
 validate_options(_, Default)                            -> Default.
+
+-spec validate_name(map()) -> binary().
+validate_name(#{name := Val}) when is_binary(Val) -> Val;
+validate_name(#{name := Val})                     -> error({invalid_name, Val});
+validate_name(_)                                  -> error(missing_name).
+
+-spec validate_group(map()) -> atom().
+validate_group(#{group := Val}) when is_atom(Val) -> Val;
+validate_group(#{group := Val})                   -> error({invalid_group, Val});
+validate_group(_)                                 -> error(missing_group).
+
+-spec validate_transport_options(map()) -> map().
+validate_transport_options(#{transport_options := Val}) ->
+	validate_transport_scheduler_node(Val),
+	Val;
+validate_transport_options(_) ->
+	error(missing_transport_options).
+
+-spec validate_transport_scheduler_node(map()) -> node().
+validate_transport_scheduler_node(#{scheduler_node := Val}) when is_atom(Val) -> Val;
+validate_transport_scheduler_node(#{scheduler_node := Val})                   -> error({invalid_transport_scheduler_node, Val});
+validate_transport_scheduler_node(_)                                          -> error(missing_transport_scheduler_node).

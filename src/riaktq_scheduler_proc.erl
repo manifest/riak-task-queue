@@ -58,7 +58,7 @@ loop(Parent, Group, Pool, Bucket, Index, EvM) ->
 handle(Group, Pool, Bucket, Index, EvM) ->
 	KVpid = riakc_pool:lock(Pool),
 	{NextUpInstances, TasksToCommit, TasksOnInstances} =
-		handle_instance_output(supervisor:which_children(Group), KVpid, Bucket, EvM),
+		handle_instance_output(riaktq_instance:list(Group), KVpid, Bucket, EvM),
 
 	handle_commit(TasksToCommit),
 	handle_assign(NextUpInstances, todo_tasks(KVpid, Index, Bucket), KVpid, Bucket, EvM),
@@ -68,11 +68,11 @@ handle(Group, Pool, Bucket, Index, EvM) ->
 handle_instance_output(Children, KVpid, Bucket, EvM) ->
 	handle_instance_output(Children, KVpid, Bucket, EvM, [], [], gb_sets:new()).
 
-handle_instance_output([{Name, Pid, _, _}|T], KVpid, Bucket, EvM, NextUpInstances, TasksToCommit, TasksOnInstances) ->
+handle_instance_output([Pid|T], KVpid, Bucket, EvM, NextUpInstances, TasksToCommit, TasksOnInstances) ->
 	AddList = fun(L, Acc) -> lists:foldl(fun gb_sets:add_element/2, Acc, L) end,
 	FilterId = fun(L) -> [Id || #{id := Id} <- L] end,
 	try riaktq_instance:get(Pid) of
-		#{input := In, output := Out, status := <<"idle">>} ->
+		#{input := In, output := Out, status := <<"idle">>, name := Name} ->
 			handle_instance_output(T, KVpid, Bucket, EvM,
 				[{Pid, Name}|NextUpInstances],
 				[{Pid, handle_close(Out, KVpid, Bucket, EvM)}|TasksToCommit],
@@ -83,7 +83,7 @@ handle_instance_output([{Name, Pid, _, _}|T], KVpid, Bucket, EvM, NextUpInstance
 				[{Pid, handle_close(Out, KVpid, Bucket, EvM)}|TasksToCommit],
 				AddList(FilterId(In), AddList(FilterId(Out), TasksOnInstances)))
 	catch T:R ->
-		?ERROR_REPORT([{instance, Name}], T, R),
+		?ERROR_REPORT([{reason, unreachable_instance}], T, R),
 		handle_instance_output(T, KVpid, Bucket, EvM, NextUpInstances, TasksToCommit, TasksOnInstances)
 	end;
 handle_instance_output([], _KVpid, _Bucket, _EvM, NextUpInstances, TasksToCommit, TasksOnInstances) ->
