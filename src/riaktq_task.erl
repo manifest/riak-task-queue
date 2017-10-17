@@ -147,7 +147,7 @@ fold(Pid, Index, AccIn, Handle, Opts) ->
 			[{filter, maps:find(fq, Opts)}, {sort, maps:find(sort, Opts)}]),
 
 	case catch riakc_pb_socket:search(Pid, Index, Query, Qopts, ?DEFAULT_REQUEST_TIMEOUT) of
-		{ok, {_, Docs, _, _}} -> lists:foldl(Handle, AccIn, Docs);
+		{ok, {_, Docs, _, _}} -> lists:reverse(lists:foldl(Handle, AccIn, Docs));
 		{ok, _}               -> AccIn;
 		{error, Reason}       -> exit(Reason);
 		{'EXIT', Reason}      -> exit(Reason);

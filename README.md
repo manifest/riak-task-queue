@@ -99,7 +99,7 @@ supervisor:start_child(whereis(riaktq_sup), riaktq:scheduler_spec({scheduler, Gr
   Name = <<"echo-", (integer_to_binary(N))/binary>>,
   InstanceConf =
     #{group => Group,
-			name => Name,
+      name => Name,
       module => riaktq_echo,
       options => #{},
       transport_options => #{scheduler_node => SchedulerNode}},
